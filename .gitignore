@@ -1,0 +1,36 @@
+# Local environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+dist/
+build/
+coverage/
+.coverage
+htmlcov/
+
+# Credentials and account-local material
+.env
+.env.*
+!.env.example
+.local/
+auth.json
+*.pem
+*.key
+
+# Generated runs and private training sources
+/runs/
+/data/runtime/
+/docs/local/
+
+# Local review artifacts and activity-report drafts
+/dev/active/mvp/*.html
+/docs/activity-report-draft.md
+*.pdf
+
+# OS metadata
+.DS_Store
+Thumbs.db
