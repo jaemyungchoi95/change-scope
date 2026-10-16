@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "holdout-v1",
+  "status": "fixed_not_evaluated",
+  "source": {
+    "path": "topology.md",
+    "sha256": "25578e17518faf8d0caf565f27712a8cd83c9946614b5a146842873d31b8b74a"
+  },
+  "answer_basis": "Manually derived from the synthetic topology; no model call.",
+  "questions": [
+    {
+      "id": "H01",
+      "question": "reranker 변경 시 상위 점검 후보는?",
+      "target": "reranker",
+      "remove": [],
+      "expected_upstream_candidates": [
+        "answer",
+        "retrieval",
+        "suggest",
+        "webapi"
+      ]
+    },
+    {
+      "id": "H02",
+      "question": "answer 변경 시 순환을 포함한 상위 후보는? 대상 자신은 제외한다.",
+      "target": "answer",
+      "remove": [],
+      "expected_upstream_candidates": [
+        "retrieval",
+        "suggest",
+        "webapi"
+      ]
+    },
+    {
+      "id": "H03",
+      "question": "webapi 변경 시 상위 점검 후보는?",
+      "target": "webapi",
+      "remove": [],
+      "expected_upstream_candidates": []
+    },
+    {
+      "id": "H04",
+      "question": "retrieval → reranker 호출을 별도 시나리오에서 제거하면 reranker의 상위 후보는?",
+      "target": "reranker",
+      "remove": [
+        [
+          "retrieval",
+          "reranker"
+        ]
+      ],
+      "expected_upstream_candidates": []
+    }
+  ]
+}
