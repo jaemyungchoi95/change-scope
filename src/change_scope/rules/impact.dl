@@ -1,0 +1,8 @@
+.decl depends_on(src: symbol, dst: symbol)
+.decl reach(src: symbol, dst: symbol)
+.decl target(service: symbol)
+.decl upstream(service: symbol)
+
+reach(S, D) :- depends_on(S, D).
+reach(S, D) :- depends_on(S, M), reach(M, D).
+upstream(S) :- reach(S, T), target(T), S != T.

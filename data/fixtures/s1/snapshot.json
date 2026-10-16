@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "S1",
+  "purpose": "baseline",
+  "deployment_status": "unverified",
+  "fixture": true,
+  "services": [
+    "webapi",
+    "answer",
+    "retrieval",
+    "reranker",
+    "suggest"
+  ],
+  "sources": [
+    {
+      "source_id": "topology",
+      "source_version": "1",
+      "path": "topology.md",
+      "sha256": "b62325990007290dcd4be6ab9ec4058e298ef9a9c3f3bfd36ecfb02634136b63"
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "F01",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F02",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "source_id": "topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F03",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "retrieval calls reranker over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F04",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "source_id": "topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls suggest over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F05",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "suggest calls reranker over HTTP.",
+      "review_status": "approved"
+    }
+  ]
+}
