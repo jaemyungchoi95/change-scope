@@ -91,3 +91,19 @@ def test_cli_failure_is_not_empty(tmp_path, mode):
     assert result["analysis_status"] == "error"
     assert result["upstream_candidates"] is None
     assert result["parity"] is None
+
+    # Preserve the failed execution before parsing or parity validation rejects it.
+    assert result["command"][0] == str(binary.resolve())
+    assert result["command"][1].endswith("/snapshot.dl")
+    assert result["returncode"] == (7 if mode == "failure" else 0)
+    assert (
+        result["stdout"]
+        == {
+            "failure": "",
+            "malformed": "garbage\n",
+            "mismatch": 'upstream("answer")\n',
+        }[mode]
+    )
+    assert result["stderr"] == ""
+    assert result["version_execution"]["returncode"] == 0
+    assert result["program"].endswith(".output upstream\n")

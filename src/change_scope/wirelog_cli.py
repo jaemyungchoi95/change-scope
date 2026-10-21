@@ -27,7 +27,10 @@ def program_bytes(edges: tuple[tuple[str, str], ...], target: str) -> bytes:
     )
 
 
-def _execute(argv: list[str], cwd: Path, timeout: float) -> subprocess.CompletedProcess:
+def _execute(
+    argv: list[str], cwd: Path, timeout: float, receipt: dict
+) -> subprocess.CompletedProcess:
+    receipt["command"] = argv
     try:
         result = subprocess.run(
             argv, cwd=cwd, capture_output=True, text=True, timeout=timeout, check=False
@@ -36,6 +39,9 @@ def _execute(argv: list[str], cwd: Path, timeout: float) -> subprocess.Completed
         raise EngineError(
             f"Wirelog CLI execution failed: {type(exc).__name__}"
         ) from exc
+    receipt.update(
+        stdout=result.stdout, stderr=result.stderr, returncode=result.returncode
+    )
     if result.returncode:
         raise EngineError(
             f"Wirelog CLI exited with code {result.returncode}: {result.stderr[:1000]}"
@@ -67,12 +73,16 @@ def verify(
             rules_hash=rules_hash(),
             program_sha256=sha256(program),
             unique_relation_count=len(snapshot.edges),
+            program=program.decode(),
         )
         binary = binary.resolve(strict=True)
         result["binary_sha256"] = sha256(binary.read_bytes())
         with tempfile.TemporaryDirectory(prefix="change-scope-wirelog-") as directory:
             cwd = Path(directory)
-            version_result = _execute([str(binary), "--version"], cwd, timeout)
+            result["version_execution"] = {}
+            version_result = _execute(
+                [str(binary), "--version"], cwd, timeout, result["version_execution"]
+            )
             if not re.fullmatch(
                 r"wirelog_cli \d+\.\d+\.\d+\S*\n?", version_result.stdout
             ):
@@ -83,7 +93,7 @@ def verify(
             program_path = cwd / "snapshot.dl"
             program_path.write_bytes(program)
             command = [str(binary), str(program_path)]
-            evaluated = _execute(command, cwd, timeout)
+            evaluated = _execute(command, cwd, timeout, result)
             candidates = set()
             for line in evaluated.stdout.splitlines():
                 match = re.fullmatch(r'upstream\("([a-z][a-z0-9_-]*)"\)', line)
@@ -102,11 +112,6 @@ def verify(
                 upstream_candidates=sorted(candidates),
                 parity=True,
                 pyrewire_candidates=expected,
-                command=command,
-                program=program.decode(),
-                stdout=evaluated.stdout,
-                stderr=evaluated.stderr,
-                returncode=evaluated.returncode,
             )
         return result, 0
     except InputError as exc:
