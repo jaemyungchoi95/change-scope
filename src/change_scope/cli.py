@@ -39,7 +39,49 @@ def main(argv: list[str] | None = None) -> int:
     parity.add_argument("--binary", type=Path, required=True)
     parity.add_argument("--output", type=Path)
     parity.add_argument("--timeout", type=_timeout, default=30.0)
+    llm_smoke = commands.add_parser(
+        "llm-smoke", help="Run a fixed synthetic LLM smoke; recorded by default"
+    )
+    llm_smoke.add_argument(
+        "--case", choices=("normal", "adversarial"), default="normal"
+    )
+    llm_smoke.add_argument(
+        "--live", action="store_true", help="Explicitly opt in to subscription CLI use"
+    )
+    llm_smoke.add_argument(
+        "--recording",
+        type=Path,
+        help="Replay a synthetic process recording; never executes it",
+    )
+    llm_smoke.add_argument("--timeout", type=_timeout, default=120.0)
+    llm_smoke.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
+    if args.command == "llm-smoke":
+        if args.output and args.output.exists():
+            return emit_result(
+                {
+                    "schema_version": 1,
+                    "extraction_status": "error",
+                    "candidates": None,
+                    "llm_mode": "not_used",
+                },
+                4,
+                args.output,
+                status_key="extraction_status",
+                value_key="candidates",
+            )
+        from .llm import smoke
+
+        result, exit_code = smoke(
+            args.case, live=args.live, recording=args.recording, timeout=args.timeout
+        )
+        return emit_result(
+            result,
+            exit_code,
+            args.output,
+            status_key="extraction_status",
+            value_key="candidates",
+        )
     if args.command == "verify-wirelog":
         from .wirelog_cli import verify
 

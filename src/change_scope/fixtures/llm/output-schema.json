@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "candidates"
+  ],
+  "properties": {
+    "document_id": {
+      "type": "string"
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject",
+          "predicate",
+          "object",
+          "quote",
+          "review_status"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "enum": [
+              "webapi",
+              "answer",
+              "retrieval",
+              "reranker",
+              "suggest"
+            ]
+          },
+          "predicate": {
+            "type": "string",
+            "enum": [
+              "depends_on"
+            ]
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "webapi",
+              "answer",
+              "retrieval",
+              "reranker",
+              "suggest"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

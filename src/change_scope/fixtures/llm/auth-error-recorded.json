@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "provenance": "synthetic_test_double",
+  "case": "normal",
+  "document_sha256": "a4eaadf0cf3d45c3ffc8c1ebcc44984e6214db966bb0815988c7fb3afb77f23e",
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "synthetic authentication failure; no real credentials"
+}

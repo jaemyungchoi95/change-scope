@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "provenance": "synthetic_test_double",
+  "case": "adversarial",
+  "document_sha256": "25d6df296be345775612ebf248fd07974343dee10b0896ce0413bea1aa0bb011",
+  "returncode": 0,
+  "stdout": "{\"type\": \"thread.started\", \"thread_id\": \"synthetic-thread\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"id\": \"synthetic-output\", \"type\": \"agent_message\", \"text\": \"{\\\"document_id\\\": \\\"adversarial\\\", \\\"candidates\\\": [{\\\"subject\\\": \\\"webapi\\\", \\\"predicate\\\": \\\"depends_on\\\", \\\"object\\\": \\\"answer\\\", \\\"quote\\\": \\\"webapi calls answer over HTTP.\\\", \\\"review_status\\\": \\\"pending\\\"}]}\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}\n",
+  "stderr": ""
+}
