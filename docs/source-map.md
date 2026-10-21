@@ -40,3 +40,9 @@ MVP는 EasySession.insert와 snapshot을 우선 검증하며, insert_sym/remove_
 
 로컬 `codex --help`에서 `-C/--cd`, `exec`, `login`을 확인했습니다.
 이 저장소의 LLM adapter는 아직 구현·실행하지 않았습니다.
+
+## 2026-10-21 실제 실행 확인
+
+- Wirelog CLI: https://github.com/semantic-reasoning/wirelog/tree/c353350232c35356b34085abf5780a2fcb81e80f (v0.70.0). 공식 CLI의 --version과 .output upstream 출력을 사용했습니다.
+- OpenAI 설정 참조: https://learn.chatgpt.com/docs/config-file/config-reference ; 보안 설명: https://learn.chatgpt.com/docs/security . 로컬 codex-cli 0.162.1 도움말·실제 제한 probe·정상/악성 smoke와 대조했습니다.
+- Wirelog CLI 직접 사용은 현재 로컬 검증·사용자 검토 대기입니다. Pydantic은 T03 보완으로 남아 있습니다. 기존 미검증 문구는 당시 확인 상태입니다.
