@@ -31,7 +31,22 @@ def main(argv: list[str] | None = None) -> int:
         help="Create a new result file; existing files are preserved",
     )
     analyze.add_argument("--timeout", type=_timeout, default=30.0, metavar="SECONDS")
+    parity = commands.add_parser(
+        "verify-wirelog", help="Compare an upstream Wirelog CLI with PyreWire"
+    )
+    parity.add_argument("--snapshot", type=Path, required=True)
+    parity.add_argument("--target", required=True)
+    parity.add_argument("--binary", type=Path, required=True)
+    parity.add_argument("--output", type=Path)
+    parity.add_argument("--timeout", type=_timeout, default=30.0)
     args = parser.parse_args(argv)
+    if args.command == "verify-wirelog":
+        from .wirelog_cli import verify
+
+        result, exit_code = verify(
+            args.snapshot, args.target, args.binary, args.timeout
+        )
+        return emit_result(result, exit_code, args.output)
     result = {
         "schema_version": 1,
         "analysis_status": "error",
@@ -105,15 +120,25 @@ def main(argv: list[str] | None = None) -> int:
     except (EngineError, OSError) as exc:
         result["error"] = {"kind": "engine_error", "message": str(exc)}
         exit_code = 3
-    if args.output:
+    return emit_result(result, exit_code, args.output)
+
+
+def emit_result(
+    result: dict,
+    exit_code: int,
+    output_path: Path | None,
+    *,
+    status_key: str = "analysis_status",
+    value_key: str = "upstream_candidates",
+) -> int:
+    if output_path:
         try:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            with args.output.open("x", encoding="utf-8") as output:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open("x", encoding="utf-8") as output:
                 output.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             result.update(
-                analysis_status="error",
-                upstream_candidates=None,
+                {status_key: "error", value_key: None},
                 error={"kind": "output_error", "message": str(exc)},
             )
             exit_code = 4
