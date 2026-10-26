@@ -20,6 +20,7 @@ DISABLED_CODE_MODE_NOTICE = (
 MAX_STDOUT = 262144
 MAX_STDERR = 65536
 MAX_RESPONSE = 16384
+SERVICES = frozenset({"webapi", "answer", "retrieval", "reranker", "suggest"})
 DISABLED_FEATURES = (
     "shell_tool",
     "unified_exec",
@@ -105,7 +106,6 @@ def validate_payload(payload: object, case: str, document: str) -> list[dict]:
     candidates = payload["candidates"]
     if not isinstance(candidates, list) or len(candidates) > 8:
         raise LLMError("schema_error", "Invalid candidate collection")
-    services = {"webapi", "answer", "retrieval", "reranker", "suggest"}
     keys = {"subject", "predicate", "object", "quote", "review_status"}
     seen = set()
     for candidate in candidates:
@@ -116,8 +116,8 @@ def validate_payload(payload: object, case: str, document: str) -> list[dict]:
         ):
             raise LLMError("schema_error", "Invalid candidate fields")
         if (
-            candidate["subject"] not in services
-            or candidate["object"] not in services
+            candidate["subject"] not in SERVICES
+            or candidate["object"] not in SERVICES
             or candidate["predicate"] != "depends_on"
             or candidate["review_status"] != "pending"
             or not 0 < len(candidate["quote"]) <= 2000
@@ -132,6 +132,36 @@ def validate_payload(payload: object, case: str, document: str) -> list[dict]:
             raise LLMError("schema_error", "Duplicate candidate")
         seen.add(key)
     return candidates
+
+
+def read_recording(path: Path) -> bytes:
+    with path.open("rb") as source:
+        data = source.read(MAX_STDOUT + MAX_STDERR + 1)
+    if len(data) > MAX_STDOUT + MAX_STDERR:
+        raise LLMError("output_limit", "Recording exceeded byte limit")
+    return data
+
+
+def replay_recording(data: bytes, binding: dict[str, str]) -> ProcessOutput:
+    """Replay a synthetic process recording bound to the exact expected input."""
+    stored = _json(data)
+    if (
+        not isinstance(stored, dict)
+        or type(stored.get("schema_version")) is not int
+        or stored.get("schema_version") != 1
+        or stored.get("provenance") != "synthetic_test_double"
+        or any(stored.get(key) != value for key, value in binding.items())
+        or type(stored.get("returncode")) is not int
+        or not isinstance(stored.get("stdout"), str)
+        or not isinstance(stored.get("stderr"), str)
+    ):
+        raise LLMError(
+            "recording_error",
+            "Recording metadata does not match the synthetic input",
+        )
+    return ProcessOutput(
+        stored["returncode"], stored["stdout"].encode(), stored["stderr"].encode()
+    )
 
 
 def parse_events(output: ProcessOutput) -> tuple[dict, dict]:
@@ -415,33 +445,13 @@ def smoke(
         if live:
             output = _live(case, document, prompt, timeout, result["audit"])
         else:
-            if recording:
-                with recording.open("rb") as source:
-                    data = source.read(MAX_STDOUT + MAX_STDERR + 1)
-                if len(data) > MAX_STDOUT + MAX_STDERR:
-                    raise LLMError("output_limit", "Recording exceeded byte limit")
-            else:
-                data = _fixture(f"{case}-recorded.json")
-            stored = _json(data)
-            if (
-                not isinstance(stored, dict)
-                or type(stored.get("schema_version")) is not int
-                or stored.get("schema_version") != 1
-                or stored.get("provenance") != "synthetic_test_double"
-                or stored.get("case") != case
-                or stored.get("document_sha256") != sha256(document)
-                or type(stored.get("returncode")) is not int
-                or not isinstance(stored.get("stdout"), str)
-                or not isinstance(stored.get("stderr"), str)
-            ):
-                raise LLMError(
-                    "recording_error",
-                    "Recording metadata does not match the synthetic input",
-                )
-            output = ProcessOutput(
-                stored["returncode"],
-                stored["stdout"].encode(),
-                stored["stderr"].encode(),
+            data = (
+                read_recording(recording)
+                if recording
+                else _fixture(f"{case}-recorded.json")
+            )
+            output = replay_recording(
+                data, {"case": case, "document_sha256": sha256(document)}
             )
         payload, events = parse_events(output)
         candidates = validate_payload(payload, case, document.decode())

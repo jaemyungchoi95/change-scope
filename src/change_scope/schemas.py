@@ -35,6 +35,14 @@ def _text(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def section_bodies(document: str, section: str) -> list[str]:
+    """Bodies of every H2 section titled exactly `section`; callers require one."""
+    sections = re.split(r"^## (.+)\r?$", document, flags=re.MULTILINE)
+    return [
+        sections[i + 1] for i in range(1, len(sections), 2) if sections[i] == section
+    ]
+
+
 def load_snapshot(path: Path) -> Snapshot:
     try:
         raw = path.read_bytes()
@@ -134,12 +142,7 @@ def load_snapshot(path: Path) -> Snapshot:
         document = documents.get((fact["source_id"], fact["source_version"]))
         _require(document is not None, "Assertion references unknown source/version")
         # T01 synthetic documents use unique H2 sections. Full candidate review is T03.
-        sections = re.split(r"^## (.+)\r?$", document, flags=re.MULTILINE)
-        matches = [
-            sections[i + 1]
-            for i in range(1, len(sections), 2)
-            if sections[i] == fact["section"]
-        ]
+        matches = section_bodies(document, fact["section"])
         _require(
             len(matches) == 1 and fact["quote"] in matches[0],
             "Quote missing from unique source section",
