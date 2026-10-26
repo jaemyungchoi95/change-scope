@@ -55,7 +55,43 @@ def main(argv: list[str] | None = None) -> int:
     )
     llm_smoke.add_argument("--timeout", type=_timeout, default=120.0)
     llm_smoke.add_argument("--output", type=Path)
+    extract = commands.add_parser(
+        "extract",
+        help="Turn a recorded extraction into pending candidates in a new workspace",
+    )
+    extract.add_argument("--source", type=Path, required=True)
+    extract.add_argument("--source-id", required=True)
+    extract.add_argument("--source-version", required=True)
+    extract.add_argument(
+        "--recording",
+        type=Path,
+        required=True,
+        help="Synthetic process recording; never executed",
+    )
+    extract.add_argument(
+        "--workspace",
+        type=Path,
+        required=True,
+        help="New review workspace directory; existing paths are refused",
+    )
     args = parser.parse_args(argv)
+    if args.command == "extract":
+        from .extraction import extract as run_extract
+
+        result, exit_code = run_extract(
+            args.source,
+            args.source_id,
+            args.source_version,
+            args.recording,
+            args.workspace,
+        )
+        return emit_result(
+            result,
+            exit_code,
+            None,
+            status_key="extraction_status",
+            value_key="candidates",
+        )
     if args.command == "llm-smoke":
         if args.output and args.output.exists():
             return emit_result(
