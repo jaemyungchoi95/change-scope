@@ -74,7 +74,58 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="New review workspace directory; existing paths are refused",
     )
+    review = commands.add_parser(
+        "review", help="Inspect candidates and record human review decisions"
+    )
+    review_commands = review.add_subparsers(dest="review_command", required=True)
+    review_show = review_commands.add_parser(
+        "show", help="Verify the workspace and show candidates with source text"
+    )
+    review_show.add_argument("--workspace", type=Path, required=True)
+    review_show.add_argument("--id", help="Show one candidate with its section text")
+    review_show.add_argument(
+        "--text", action="store_true", help="Human-readable output instead of JSON"
+    )
+    review_decide = review_commands.add_parser(
+        "decide", help="Append one approve/reject decision to the review ledger"
+    )
+    review_decide.add_argument("--workspace", type=Path, required=True)
+    review_decide.add_argument("--id", required=True)
+    review_decide.add_argument("--revision", type=int, required=True)
+    review_decide.add_argument(
+        "--decision", choices=("approve", "reject"), required=True
+    )
+    review_decide.add_argument(
+        "--reviewer", required=True, help="Recorded label; not authentication"
+    )
+    review_decide.add_argument("--reason", required=True)
     args = parser.parse_args(argv)
+    if args.command == "review":
+        from . import review as review_module
+
+        if args.review_command == "show":
+            result, exit_code = review_module.show(args.workspace, args.id)
+            if args.text:
+                print(review_module.render_text(result))
+                return exit_code
+            return emit_result(
+                result,
+                exit_code,
+                None,
+                status_key="show_status",
+                value_key="candidates",
+            )
+        result, exit_code = review_module.decide(
+            args.workspace,
+            args.id,
+            args.revision,
+            args.decision,
+            args.reason,
+            args.reviewer,
+        )
+        return emit_result(
+            result, exit_code, None, status_key="decide_status", value_key="candidate"
+        )
     if args.command == "extract":
         from .extraction import extract as run_extract
 
