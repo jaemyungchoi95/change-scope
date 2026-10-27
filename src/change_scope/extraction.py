@@ -38,11 +38,11 @@ CheckKind = Literal[
 ]
 
 
-class _Strict(BaseModel):
+class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
 
-class ExtractedCandidate(_Strict):
+class ExtractedCandidate(StrictModel):
     """One relation as claimed by model output; untrusted until checked."""
 
     subject: Service
@@ -53,12 +53,12 @@ class ExtractedCandidate(_Strict):
     review_status: Literal["pending"]
 
 
-class ExtractionPayload(_Strict):
+class ExtractionPayload(StrictModel):
     document_id: str
     candidates: list[ExtractedCandidate] = Field(max_length=MAX_CANDIDATES)
 
 
-class SourceRecord(_Strict):
+class SourceRecord(StrictModel):
     """Source identity assigned by the app; the hash is computed from stored bytes."""
 
     source_id: Identifier
@@ -68,13 +68,13 @@ class SourceRecord(_Strict):
     blob: str
 
 
-class SourceCheck(_Strict):
+class SourceCheck(StrictModel):
     status: Literal["passed", "failed"]
     kind: CheckKind | None = None
     message: str | None = None
 
 
-class Candidate(_Strict):
+class Candidate(StrictModel):
     candidate_id: str
     revision: int = Field(ge=1)
     subject: Service
@@ -89,7 +89,7 @@ class Candidate(_Strict):
     source_check: SourceCheck
 
 
-class CandidateSet(_Strict):
+class CandidateSet(StrictModel):
     schema_version: Literal[1]
     kind: Literal["candidate_set"]
     llm_mode: Literal["recorded_output"]
