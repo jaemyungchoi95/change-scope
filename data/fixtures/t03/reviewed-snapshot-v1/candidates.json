@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "kind": "candidate_set",
+  "llm_mode": "recorded_output",
+  "provenance": "synthetic_test_double",
+  "recording_sha256": "c6775ce163dcbe40a9d614aedac0bfe069ef2c50539fda6dde252d1bb68f3c38",
+  "source": {
+    "source_id": "topology-review",
+    "source_version": "1",
+    "sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+    "byte_length": 421,
+    "blob": "sources/6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f.md"
+  },
+  "candidates": [
+    {
+      "candidate_id": "c-64fa8cb1b9a9fb76",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-136a916921694394",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-15fa854fcfac56e7",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "retrieval calls reranker over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-cab5bf8d33af3866",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "webapi calls suggest over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-c3e0780f7d7dbc49",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "suggest calls reranker over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-9828ccf4a34cee85",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "webapi",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-02176a76dfc0b316",
+      "revision": 1,
+      "subject": "reranker",
+      "predicate": "depends_on",
+      "object": "webapi",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "HTTP calls",
+      "quote": "reranker calls webapi over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "failed",
+        "kind": "quote_missing",
+        "message": "Quote is absent from the source"
+      }
+    },
+    {
+      "candidate_id": "c-2eba4d9382e7afcd",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "topology-review",
+      "source_version": "1",
+      "source_sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+      "section": "Operations",
+      "quote": "retrieval calls reranker over HTTP.",
+      "review_status": "pending",
+      "source_check": {
+        "status": "failed",
+        "kind": "section_mismatch",
+        "message": "Quote exists in the source but not in the named section"
+      }
+    }
+  ],
+  "deployment_status": "unverified"
+}

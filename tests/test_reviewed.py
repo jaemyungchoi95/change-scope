@@ -5,6 +5,7 @@ No LLM/network calls; PyreWire runs for real.
 
 import json
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -344,3 +345,30 @@ def test_unknown_target_on_reviewed_snapshot_is_input_error(capsys, snapshot):
     assert code == 2
     assert result["error"]["kind"] == "input_error"
     assert result["snapshot_id"].startswith("rs-")
+
+
+GOLDEN_V1 = ROOT / "data/fixtures/t03/reviewed-snapshot-v1"
+
+
+def test_t03_golden_snapshot_still_analyzes(capsys):
+    # Pinned output of the T03 export; later schema changes must keep it loadable.
+    code, result = analyze(capsys, GOLDEN_V1 / "snapshot.json", "reranker")
+    assert code == 0, result
+    assert result["snapshot_id"] == "rs-f2c188bc0a0c9b64"
+    assert result["upstream_candidates"] == RERANKER_UPSTREAM
+    assert result["review"]["summary"] == {
+        "total": 8,
+        "approved": 5,
+        "pending": 0,
+        "rejected": 1,
+        "approval_blocked": 2,
+    }
+
+
+def test_t03_golden_snapshot_edits_are_refused(capsys, tmp_path):
+    copy = tmp_path / "golden"
+    shutil.copytree(GOLDEN_V1, copy)
+    _edit_snapshot(copy / "snapshot.json", _inject_reversed)
+    code, result = analyze(capsys, copy / "snapshot.json", "webapi")
+    assert code == 2
+    assert result["error"]["kind"] == "input_error"

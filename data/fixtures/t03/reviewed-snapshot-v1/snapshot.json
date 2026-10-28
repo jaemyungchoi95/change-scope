@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "kind": "reviewed_snapshot",
+  "snapshot_id": "rs-f2c188bc0a0c9b64",
+  "purpose": "baseline",
+  "fixture": false,
+  "services": [
+    "webapi",
+    "answer",
+    "retrieval",
+    "reranker",
+    "suggest"
+  ],
+  "source": {
+    "source_id": "topology-review",
+    "source_version": "1",
+    "sha256": "6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f",
+    "byte_length": 421,
+    "blob": "sources/6e363f85011e08441b09b81295c2ca87298cf87b94972e9bd3fe9d0047253d6f.md"
+  },
+  "candidate_set_sha256": "1f72d569216f9c2d8cd974ea35db49d1f2d9c3fe419c444c88363281877b57e9",
+  "ledger_head_sha256": "4916dec622caa05bcdc7f34d80a1f3498e04017b7a50be1f1dcb06a0df83050d",
+  "summary": {
+    "total": 8,
+    "approved": 5,
+    "pending": 0,
+    "rejected": 1,
+    "approval_blocked": 2
+  },
+  "approved": [
+    {
+      "candidate_id": "c-64fa8cb1b9a9fb76",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "decision_seq": 1,
+      "reviewer": "golden-fixture",
+      "reason": "direction matches the HTTP calls section"
+    },
+    {
+      "candidate_id": "c-136a916921694394",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "decision_seq": 2,
+      "reviewer": "golden-fixture",
+      "reason": "direction matches the HTTP calls section"
+    },
+    {
+      "candidate_id": "c-15fa854fcfac56e7",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "section": "HTTP calls",
+      "quote": "retrieval calls reranker over HTTP.",
+      "decision_seq": 3,
+      "reviewer": "golden-fixture",
+      "reason": "direction matches the HTTP calls section"
+    },
+    {
+      "candidate_id": "c-cab5bf8d33af3866",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "section": "HTTP calls",
+      "quote": "webapi calls suggest over HTTP.",
+      "decision_seq": 4,
+      "reviewer": "golden-fixture",
+      "reason": "direction matches the HTTP calls section"
+    },
+    {
+      "candidate_id": "c-c3e0780f7d7dbc49",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "section": "HTTP calls",
+      "quote": "suggest calls reranker over HTTP.",
+      "decision_seq": 5,
+      "reviewer": "golden-fixture",
+      "reason": "direction matches the HTTP calls section"
+    }
+  ],
+  "excluded": [
+    {
+      "candidate_id": "c-9828ccf4a34cee85",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "webapi",
+      "status": "rejected",
+      "source_check": {
+        "status": "passed",
+        "kind": null,
+        "message": null
+      }
+    },
+    {
+      "candidate_id": "c-02176a76dfc0b316",
+      "revision": 1,
+      "subject": "reranker",
+      "predicate": "depends_on",
+      "object": "webapi",
+      "status": "approval_blocked",
+      "source_check": {
+        "status": "failed",
+        "kind": "quote_missing",
+        "message": "Quote is absent from the source"
+      }
+    },
+    {
+      "candidate_id": "c-2eba4d9382e7afcd",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "status": "approval_blocked",
+      "source_check": {
+        "status": "failed",
+        "kind": "section_mismatch",
+        "message": "Quote exists in the source but not in the named section"
+      }
+    }
+  ],
+  "deployment_status": "unverified"
+}
