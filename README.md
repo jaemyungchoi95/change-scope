@@ -3,7 +3,7 @@
 서비스 변경에 따라 다시 확인할 컴포넌트와 테스트 근거를 찾는 로컬 개발 도구입니다.
 OSSAI Wirelog 트랙의 개인 프로젝트로, 문서 기반 지식 추출과 검토, Datalog 추론, 근거 검색을 연결합니다.
 
-**현재 상태: T01·T01a(Wirelog CLI 결과 대조)·T02(정상·악성 입력의 실제 구독 CLI smoke) 사용자 완료 승인. T03~T10은 미착수입니다.**
+**현재 상태: T01·T01a(Wirelog CLI 결과 대조)·T02(정상·악성 입력의 실제 구독 CLI smoke) 사용자 완료 승인, T03(추출 후보 사람 검토·승인 snapshot 분석) 완료. T04~T10은 미완료입니다.**
 
 ## 해결할 질문
 
@@ -46,8 +46,10 @@ webapi는 대체 경로가 있으므로 후보에서 사라지지 않습니다.
 ## 작업 경로와 세션 시작
 
 ```bash
-codex -C change-scope
+cd change-scope && claude
 ```
+
+개발 도구는 Claude Code입니다. 제품 내부 LLM 경계(`llm.py`)는 Codex 구독 CLI adapter를 유지합니다.
 
 교육 자료 원본은 저장소에 복제하지 않습니다.
 
@@ -111,11 +113,11 @@ uv run --no-sync pytest -q
 WIRELOG_CLI="$PWD/.local/wirelog-v0.70.0/build/wirelog_cli" uv run --no-sync pytest -q tests/test_wirelog_cli.py
 ```
 
-기본 suite는 75 passed·2 skipped이며, 외부 Wirelog CLI를 명시한 별도 suite는 7 passed입니다.
+T03 완료 시점(2026-10-27) 기본 suite는 168 passed·2 skipped이며, 외부 Wirelog CLI를 명시한 별도 suite는 7 passed입니다.
 기본 테스트는 실제 LLM 호출을 하지 않습니다. Wirelog CLI opt-in은 외부 바이너리만 실행하며 LLM을 호출하지 않습니다.
 초기 설치·빌드와 live smoke에는 네트워크가 필요하므로 전체를 offline workflow로 표현하지 않습니다.
 
-T02는 Linux/POSIX에서 두 고정 합성 문서만 시험하는 smoke 경로입니다. 임의 문서 추출·승인·export는 T03 이후입니다.
+T02는 Linux/POSIX에서 두 고정 합성 문서만 시험하는 smoke 경로입니다. 후보 검토·승인·export는 아래 T03 흐름을 사용합니다.
 `--live`가 없으면 `llm_mode=recorded_output`, `provenance=synthetic_test_double`입니다.
 실제 호출은 `llm_mode=live_cli`, `provenance=live_subscription_cli`로 표시합니다.
 후보는 항상 `pending`이며 S1이나 승인 모델에 자동 적재하지 않습니다.
@@ -136,6 +138,27 @@ Codex CLI 0.162.1에서 관찰한 정확한 Code Mode 차단 알림만 비실행
 JSONL에서 실제 모델 식별자가 제공되지 않아 `model_id=null`을 미확인으로 남깁니다.
 
 [검증 기록과 한계](docs/t01a-t02-verification.md)를 참고합니다. T01a·T02는 2026-10-26 사용자 완료 승인했습니다.
+
+## T03 검토 흐름
+
+기록된 합성 추출 결과에서 pending 후보를 만들고, 사람이 원문과 대조해 판정한 승인분만 분석합니다. LLM은 호출하지 않습니다.
+
+```bash
+W=runs/t03-ws; S=runs/t03-snap
+uv run --no-sync change-scope extract --source data/fixtures/t03/topology.md --source-id topology-review \
+  --source-version 1 --recording data/fixtures/t03/topology-recorded.json --workspace $W
+uv run --no-sync change-scope review show --workspace $W --text
+uv run --no-sync change-scope review decide --workspace $W --id <candidate_id> --revision 1 \
+  --decision approve --reviewer <name> --reason "<원문 확인 사유>"
+uv run --no-sync change-scope export --workspace $W --output $S
+uv run --no-sync change-scope analyze --snapshot $S/snapshot.json --target reranker
+```
+
+- source check(인용의 절·원문 존재)는 기계가 확인하고, 관계 의미·방향은 사람이 판정합니다. 실패 후보는 reject만 할 수 있습니다.
+- 판정은 hash chain ledger에 append-only로 남습니다. `--reviewer`는 기록용 이름이며 인증이 아닙니다.
+- export는 approved만 snapshot에 넣고 나머지를 excluded로 표시합니다. 승인이 없으면 거부합니다.
+- analyze는 snapshot에 동봉된 근거로 승인 집합을 다시 계산해 일치할 때만 실행합니다. approved는 문서 검토 상태이며 배포 상태가 아닙니다.
+- 정상 5개 승인 시 reranker 후보 4개, webapi는 정상 empty입니다. ledger 끝부분 삭제는 snapshot의 `ledger_head_sha256`을 따로 보관해야 검출됩니다.
 
 ## 범위 밖
 
