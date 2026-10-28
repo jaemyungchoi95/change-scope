@@ -3,7 +3,7 @@
 서비스 변경에 따라 다시 확인할 컴포넌트와 테스트 근거를 찾는 로컬 개발 도구입니다.
 OSSAI Wirelog 트랙의 개인 프로젝트로, 문서 기반 지식 추출과 검토, Datalog 추론, 근거 검색을 연결합니다.
 
-**현재 상태: T01·T01a(Wirelog CLI 결과 대조)·T02(정상·악성 입력의 실제 구독 CLI smoke) 사용자 완료 승인, T03(추출 후보 사람 검토·승인 snapshot 분석) 완료. T04~T10은 미완료입니다.**
+**현재 상태: T01·T01a(Wirelog CLI 결과 대조)·T02(정상·악성 입력의 실제 구독 CLI smoke) 사용자 완료 승인, T03(추출 후보 사람 검토·승인 snapshot 분석)·T04(수정·새 원문 버전·철회)·T05(근거 경로) 완료. T06~T10은 미완료입니다.**
 
 ## 해결할 질문
 
@@ -159,6 +159,10 @@ uv run --no-sync change-scope analyze --snapshot $S/snapshot.json --target reran
 - export는 approved만 snapshot에 넣고 나머지를 excluded로 표시합니다. 승인이 없으면 거부합니다.
 - analyze는 snapshot에 동봉된 근거로 승인 집합을 다시 계산해 일치할 때만 실행합니다. approved는 문서 검토 상태이며 배포 상태가 아닙니다.
 - 정상 5개 승인 시 reranker 후보 4개, webapi는 정상 empty입니다. ledger 끝부분 삭제는 snapshot의 `ledger_head_sha256`을 따로 보관해야 검출됩니다.
+
+T04: `review add-source`로 새 원문 버전을 등록하면 기존 승인은 새 snapshot에 승계되지 않습니다. `review revise`로 새 pending revision을 만들어 다시 판정하고, `review withdraw`로 승인 효력을 끝냅니다. 이전에 export한 snapshot은 동봉된 원문으로 그대로 재분석됩니다.
+
+T05: `analyze` 결과의 `witnesses`는 후보마다 대상까지의 경로(첫 hop별 최단 1개)와 각 단계의 사실 ID·원문 인용입니다. 엔진 결과와 경로 집합이 다르면 `witness_mismatch` 오류입니다. 경로는 검토된 입력 그래프의 witness이며 엔진 proof tree가 아닙니다.
 
 ## 범위 밖
 
