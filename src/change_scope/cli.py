@@ -99,6 +99,35 @@ def main(argv: list[str] | None = None) -> int:
         "--reviewer", required=True, help="Recorded label; not authentication"
     )
     review_decide.add_argument("--reason", required=True)
+    review_revise = review_commands.add_parser(
+        "revise", help="Append a new pending revision of a candidate"
+    )
+    review_revise.add_argument("--workspace", type=Path, required=True)
+    review_revise.add_argument("--id", required=True)
+    review_revise.add_argument("--from-revision", type=int, required=True)
+    for name in ("subject", "object", "section", "quote"):
+        review_revise.add_argument(f"--{name}", help="Defaults to the latest revision")
+    review_revise.add_argument(
+        "--source-version", help="Defaults to the current source version"
+    )
+    review_revise.add_argument("--reviewer", required=True)
+    review_revise.add_argument("--reason", required=True)
+    review_withdraw = review_commands.add_parser(
+        "withdraw", help="End the effect of an approved latest revision"
+    )
+    review_withdraw.add_argument("--workspace", type=Path, required=True)
+    review_withdraw.add_argument("--id", required=True)
+    review_withdraw.add_argument("--revision", type=int, required=True)
+    review_withdraw.add_argument("--reviewer", required=True)
+    review_withdraw.add_argument("--reason", required=True)
+    review_source = review_commands.add_parser(
+        "add-source", help="Register a new version of the workspace source"
+    )
+    review_source.add_argument("--workspace", type=Path, required=True)
+    review_source.add_argument("--source", type=Path, required=True)
+    review_source.add_argument("--source-version", required=True)
+    review_source.add_argument("--reviewer", required=True)
+    review_source.add_argument("--reason", required=True)
     export = commands.add_parser(
         "export", help="Export ledger-approved candidates as a reviewed snapshot"
     )
@@ -131,6 +160,48 @@ def main(argv: list[str] | None = None) -> int:
                 None,
                 status_key="show_status",
                 value_key="candidates",
+            )
+        if args.review_command == "revise":
+            result, exit_code = review_module.revise(
+                args.workspace,
+                args.id,
+                args.from_revision,
+                args.reason,
+                args.reviewer,
+                subject=args.subject,
+                object_=args.object,
+                section=args.section,
+                quote=args.quote,
+                source_version=args.source_version,
+            )
+            return emit_result(
+                result,
+                exit_code,
+                None,
+                status_key="revise_status",
+                value_key="candidate",
+            )
+        if args.review_command == "withdraw":
+            result, exit_code = review_module.withdraw(
+                args.workspace, args.id, args.revision, args.reason, args.reviewer
+            )
+            return emit_result(
+                result,
+                exit_code,
+                None,
+                status_key="withdraw_status",
+                value_key="candidate",
+            )
+        if args.review_command == "add-source":
+            result, exit_code = review_module.add_source(
+                args.workspace,
+                args.source,
+                args.source_version,
+                args.reason,
+                args.reviewer,
+            )
+            return emit_result(
+                result, exit_code, None, status_key="source_status", value_key="source"
             )
         result, exit_code = review_module.decide(
             args.workspace,
