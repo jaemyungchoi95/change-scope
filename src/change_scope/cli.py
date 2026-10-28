@@ -7,7 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from .engine import EngineError, rules_hash, upstream_candidates
-from .schemas import InputError, load_snapshot, sha256
+from .schemas import InputError, sha256
 
 
 def _timeout(value: str) -> float:
@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="change-scope")
     commands = parser.add_subparsers(dest="command", required=True)
     analyze = commands.add_parser(
-        "analyze", help="Analyze an explicitly reviewed fixture"
+        "analyze", help="Analyze a reviewed fixture or an exported reviewed snapshot"
     )
     analyze.add_argument("--snapshot", type=Path, required=True)
     analyze.add_argument("--target", required=True)
@@ -209,7 +209,9 @@ def main(argv: list[str] | None = None) -> int:
     }
     exit_code = 0
     try:
-        snapshot = load_snapshot(args.snapshot)
+        from .reviewed import load_for_analysis
+
+        snapshot, extras = load_for_analysis(args.snapshot)
         result.update(
             snapshot_id=snapshot.snapshot_id,
             snapshot_hash=snapshot.snapshot_hash,
@@ -260,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
                 "Witnesses, test evidence, review workflow and scenario comparison are not implemented in T01.",
             ],
         )
+        result.update(extras)
     except InputError as exc:
         result["error"] = {"kind": "input_error", "message": str(exc)}
         exit_code = 2

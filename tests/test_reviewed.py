@@ -1,4 +1,7 @@
-"""T03-C seam: export approved candidates as a reviewed snapshot; no LLM/network calls."""
+"""T03-C seam: export approved candidates and analyze them with the real engine.
+
+No LLM/network calls; PyreWire runs for real.
+"""
 
 import json
 import os
@@ -22,6 +25,7 @@ CORRECT = [
 REVERSED = ("answer", "webapi", "HTTP calls")
 FAKE_QUOTE = ("reranker", "webapi", "HTTP calls")
 WRONG_SECTION = ("retrieval", "reranker", "Operations")
+RERANKER_UPSTREAM = ["answer", "retrieval", "suggest", "webapi"]
 
 
 @pytest.fixture
@@ -70,6 +74,10 @@ def export(capsys, workspace, output):
     return cli(capsys, "export", "--workspace", workspace, "--output", output)
 
 
+def analyze(capsys, snapshot, target):
+    return cli(capsys, "analyze", "--snapshot", snapshot, "--target", target)
+
+
 def reviewed(capsys, workspace, *, reject=(REVERSED, FAKE_QUOTE, WRONG_SECTION)):
     for key in CORRECT:
         decide(capsys, workspace, key, "approve")
@@ -78,7 +86,15 @@ def reviewed(capsys, workspace, *, reject=(REVERSED, FAKE_QUOTE, WRONG_SECTION))
     return workspace
 
 
-def test_full_review_exports_only_approved(capsys, workspace, tmp_path):
+@pytest.fixture
+def snapshot(capsys, workspace, tmp_path):
+    reviewed(capsys, workspace)
+    code, out = export(capsys, workspace, tmp_path / "snap")
+    assert code == 0, out
+    return tmp_path / "snap" / "snapshot.json"
+
+
+def test_full_review_exports_only_approved_and_analyzes(capsys, workspace, tmp_path):
     reviewed(capsys, workspace)
     output = tmp_path / "snap"
     code, out = export(capsys, workspace, output)
@@ -106,6 +122,30 @@ def test_full_review_exports_only_approved(capsys, workspace, tmp_path):
     for name in ("candidates.json", "ledger.jsonl", blob):
         assert (output / name).read_bytes() == (workspace / name).read_bytes()
 
+    code, result = analyze(capsys, output / "snapshot.json", "reranker")
+    assert code == 0, result
+    assert result["analysis_status"] == "success"
+    assert result["upstream_candidates"] == RERANKER_UPSTREAM
+    assert result["engine_mode"] == "live_engine"
+    assert result["engine"]["version"]
+    assert result["fixture"] is False
+    assert result["snapshot_kind"] == "reviewed"
+    assert result["snapshot_id"] == out["snapshot_id"]
+    assert result["snapshot_hash"] == out["snapshot_sha256"]
+    assert result["review"]["ledger_head_sha256"] == out["ledger_head_sha256"]
+    assert result["review"]["summary"]["rejected"] == 3
+    assert result["unique_relation_count"] == 5
+    support = {
+        (f["subject"], f["object"]): f["support"][0]["candidate_id"]
+        for f in result["facts"]
+    }
+    assert support == {(s, o): ids(workspace)[(s, o, sec)] for s, o, sec in CORRECT}
+
+    code, result = analyze(capsys, output / "snapshot.json", "webapi")
+    assert code == 0, result
+    assert result["analysis_status"] == "empty"
+    assert result["upstream_candidates"] == []
+
 
 def test_partial_review_lists_pending_and_blocked(capsys, workspace, tmp_path):
     reviewed(capsys, workspace, reject=())
@@ -122,6 +162,23 @@ def test_partial_review_lists_pending_and_blocked(capsys, workspace, tmp_path):
     }
     assert out["summary"]["pending"] == 1
     assert out["summary"]["approval_blocked"] == 2
+    code, result = analyze(capsys, tmp_path / "snap/snapshot.json", "reranker")
+    assert code == 0, result
+    assert result["upstream_candidates"] == RERANKER_UPSTREAM
+    assert result["review"]["summary"]["pending"] == 1
+
+
+def test_human_approval_of_reversed_relation_reaches_analysis(
+    capsys, workspace, tmp_path
+):
+    # Direction is a human judgement; a wrong approval is analyzed as recorded.
+    reviewed(capsys, workspace, reject=())
+    decide(capsys, workspace, REVERSED, "approve")
+    code, out = export(capsys, workspace, tmp_path / "snap")
+    assert code == 0, out
+    code, result = analyze(capsys, tmp_path / "snap/snapshot.json", "webapi")
+    assert code == 0, result
+    assert result["upstream_candidates"] == ["answer"]
 
 
 @pytest.mark.parametrize("reject", [(), (REVERSED, FAKE_QUOTE)])
@@ -190,3 +247,100 @@ def test_export_is_deterministic(capsys, workspace, tmp_path):
     assert (tmp_path / "a/snapshot.json").read_bytes() == (
         tmp_path / "b/snapshot.json"
     ).read_bytes()
+
+
+def _edit_snapshot(snapshot, change):
+    data = json.loads(snapshot.read_text())
+    change(data)
+    snapshot.write_text(json.dumps(data, indent=2))
+
+
+def _inject_reversed(data):
+    fact = dict(data["approved"][0])
+    fact.update(subject="answer", object="webapi")
+    data["approved"].append(fact)
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        _inject_reversed,
+        lambda d: d["approved"].pop(),
+        lambda d: d["excluded"][0].update(status="pending"),
+        lambda d: d.update(snapshot_id="rs-0000000000000000"),
+        lambda d: d.update(ledger_head_sha256="0" * 64),
+        lambda d: d["summary"].update(rejected=0),
+        lambda d: d["approved"][0].update(reviewer="someone else"),
+        lambda d: d.update(extra=True),
+        lambda d: d.update(fixture=True),
+        lambda d: d.update(approved=[]),
+    ],
+    ids=[
+        "inject-approval",
+        "drop-approval",
+        "excluded-status",
+        "snapshot-id",
+        "ledger-head",
+        "summary",
+        "reviewer",
+        "extra-field",
+        "fixture-flag",
+        "empty-approved",
+    ],
+)
+def test_edited_snapshot_is_refused(capsys, snapshot, tamper):
+    _edit_snapshot(snapshot, tamper)
+    code, result = analyze(capsys, snapshot, "reranker")
+    assert code == 2
+    assert result["analysis_status"] == "error"
+    assert result["error"]["kind"] == "input_error"
+    assert result["upstream_candidates"] is None
+
+
+def _source_blob(snapshot):
+    return next((snapshot.parent / "sources").iterdir())
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        lambda s: (s.parent / "ledger.jsonl").unlink(),
+        lambda s: (s.parent / "ledger.jsonl").write_bytes(
+            b"".join((s.parent / "ledger.jsonl").read_bytes().splitlines(True)[1:])
+        ),
+        lambda s: (s.parent / "candidates.json").unlink(),
+        lambda s: _source_blob(s).write_bytes(_source_blob(s).read_bytes() + b"x"),
+    ],
+    ids=[
+        "ledger-removed",
+        "ledger-line-removed",
+        "candidates-removed",
+        "source-edited",
+    ],
+)
+def test_edited_evidence_is_refused(capsys, snapshot, tamper):
+    tamper(snapshot)
+    code, result = analyze(capsys, snapshot, "reranker")
+    assert code == 2
+    assert result["error"]["kind"] == "input_error"
+    assert "verification" in result["error"]["message"]
+
+
+def test_decision_appended_to_exported_copy_is_refused(capsys, workspace, tmp_path):
+    reviewed(capsys, workspace, reject=())
+    code, out = export(capsys, workspace, tmp_path / "snap")
+    assert code == 0, out
+    # The copy is a valid workspace, but its snapshot.json no longer matches it.
+    decide(capsys, tmp_path / "snap", REVERSED, "approve")
+    code, result = analyze(capsys, tmp_path / "snap/snapshot.json", "webapi")
+    assert code == 2
+    assert result["error"]["message"] == (
+        "Reviewed snapshot does not match its review evidence"
+    )
+
+
+def test_unknown_target_on_reviewed_snapshot_is_input_error(capsys, snapshot):
+    code, result = analyze(capsys, snapshot, "billing")
+    assert code == 2
+    assert result["error"]["kind"] == "input_error"
+    assert result["snapshot_id"].startswith("rs-")

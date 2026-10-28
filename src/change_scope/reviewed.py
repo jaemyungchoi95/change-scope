@@ -1,7 +1,9 @@
-"""T03-C: export approved candidates as a reviewed snapshot.
+"""T03-C: export approved candidates as a reviewed snapshot and load it for analysis.
 
 A reviewed snapshot directory carries its own review evidence (candidates, ledger and
-source blob), and snapshot.json is built from that copied evidence.
+source blob). The loader re-verifies that evidence and rebuilds the snapshot from it,
+so hand-edited approvals are refused instead of analyzed. T01's fixture loader is
+unchanged and still handles every other snapshot.
 """
 
 import fcntl
@@ -31,7 +33,7 @@ from .review import (
     _read_regular,
     load_workspace,
 )
-from .schemas import sha256
+from .schemas import InputError, Snapshot, load_snapshot, sha256
 
 SNAPSHOT = "snapshot.json"
 SERVICES = list(get_args(Service))
@@ -258,3 +260,57 @@ def export(workspace_path: Path, output: Path) -> tuple[dict, int]:
     except ReviewError as exc:
         result["error"] = {"kind": exc.kind, "message": str(exc)}
         return result, 4 if exc.kind == "output_error" else 2
+
+
+def load_reviewed_snapshot(path: Path, raw: bytes) -> tuple[Snapshot, dict]:
+    try:
+        parsed = ReviewedSnapshot.model_validate_json(raw)
+    except ValidationError as exc:
+        raise InputError(
+            f"Reviewed snapshot failed schema validation ({exc.error_count()} error(s))"
+        ) from exc
+    try:
+        rebuilt = build_snapshot(load_workspace(path.parent))
+    except ReviewError as exc:
+        raise InputError(
+            f"Review evidence failed verification ({exc.kind}): {exc}"
+        ) from exc
+    if rebuilt != parsed:
+        raise InputError("Reviewed snapshot does not match its review evidence")
+    snapshot = Snapshot(
+        parsed.snapshot_id,
+        sha256(raw),
+        parsed.purpose,
+        frozenset(parsed.services),
+        tuple(sorted({(f.subject, f.object) for f in parsed.approved})),
+        tuple(f.model_dump() for f in parsed.approved),
+        (parsed.source.model_dump(),),
+    )
+    extras = {
+        "fixture": False,
+        "snapshot_kind": "reviewed",
+        "review": {
+            "candidate_set_sha256": parsed.candidate_set_sha256,
+            "ledger_head_sha256": parsed.ledger_head_sha256,
+            "summary": parsed.summary.model_dump(),
+            "excluded": [e.model_dump() for e in parsed.excluded],
+        },
+        "limitations": [
+            "Document model of human-approved candidates only; deployment unverified.",
+            "Relation meaning and direction were judged by the recorded reviewer.",
+            "Witnesses, test evidence, revisions and scenario comparison are not implemented in T03.",
+        ],
+    }
+    return snapshot, extras
+
+
+def load_for_analysis(path: Path) -> tuple[Snapshot, dict]:
+    """Route reviewed snapshots to their own loader; all else stays T01's fixture loader."""
+    try:
+        raw = path.read_bytes()
+        data = json.loads(raw)
+    except (OSError, ValueError) as exc:
+        raise InputError(f"Cannot read snapshot: {exc}") from exc
+    if isinstance(data, dict) and data.get("kind") == "reviewed_snapshot":
+        return load_reviewed_snapshot(path, raw)
+    return load_snapshot(path), {}
