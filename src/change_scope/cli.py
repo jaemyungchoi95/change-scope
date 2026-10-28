@@ -99,7 +99,24 @@ def main(argv: list[str] | None = None) -> int:
         "--reviewer", required=True, help="Recorded label; not authentication"
     )
     review_decide.add_argument("--reason", required=True)
+    export = commands.add_parser(
+        "export", help="Export ledger-approved candidates as a reviewed snapshot"
+    )
+    export.add_argument("--workspace", type=Path, required=True)
+    export.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="New snapshot directory; existing paths are refused",
+    )
     args = parser.parse_args(argv)
+    if args.command == "export":
+        from .reviewed import export as run_export
+
+        result, exit_code = run_export(args.workspace, args.output)
+        return emit_result(
+            result, exit_code, None, status_key="export_status", value_key="approved"
+        )
     if args.command == "review":
         from . import review as review_module
 
