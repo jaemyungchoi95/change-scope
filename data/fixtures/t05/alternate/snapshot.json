@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "T05-alternate",
+  "purpose": "baseline",
+  "deployment_status": "unverified",
+  "fixture": true,
+  "services": [
+    "webapi",
+    "answer",
+    "retrieval",
+    "reranker",
+    "suggest"
+  ],
+  "sources": [
+    {
+      "source_id": "alternate",
+      "source_version": "1",
+      "path": "topology.md",
+      "sha256": "ab6da65b761270848fe1c414a2ef69c110f3a9090b73b959e0a5aa9dc7bd0117"
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "F01",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "alternate",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F02",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "source_id": "alternate",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F04",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "source_id": "alternate",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls suggest over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F05",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "alternate",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "suggest calls reranker over HTTP.",
+      "review_status": "approved"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "T05-cycle",
+  "purpose": "baseline",
+  "deployment_status": "unverified",
+  "fixture": true,
+  "services": [
+    "webapi",
+    "answer",
+    "retrieval",
+    "reranker",
+    "suggest"
+  ],
+  "sources": [
+    {
+      "source_id": "cycle",
+      "source_version": "1",
+      "path": "topology.md",
+      "sha256": "9e58d5c782b4d2c24b99d597d6eee59809d01fed1c12b93c51d42ec7bb812df8"
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "F01",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F02",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F03",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "retrieval calls reranker over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F04",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls suggest over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F05",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "suggest calls reranker over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "F06",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "cycle",
+      "source_version": "1",
+      "section": "Callbacks",
+      "quote": "retrieval calls answer back with ranked passages over HTTP.",
+      "review_status": "approved"
+    }
+  ]
+}

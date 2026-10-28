@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .engine import EngineError, rules_hash, upstream_candidates
 from .schemas import InputError, sha256
+from .witness import WitnessError, explain
 
 
 def _timeout(value: str) -> float:
@@ -309,9 +310,12 @@ def main(argv: list[str] | None = None) -> int:
         candidates = upstream_candidates(
             snapshot.edges, args.target, snapshot.services, args.timeout
         )
+        witnesses, witness_check = explain(snapshot, args.target, candidates)
         result.update(
             analysis_status="success" if candidates else "empty",
             upstream_candidates=candidates,
+            witnesses=witnesses,
+            witness_check=witness_check,
             unique_relation_count=len(snapshot.edges),
             fixture=True,
             sources=list(snapshot.sources),
@@ -330,13 +334,17 @@ def main(argv: list[str] | None = None) -> int:
             ],
             limitations=[
                 "Document model only; deployment unverified.",
-                "Witnesses, test evidence, review workflow and scenario comparison are not implemented in T01.",
+                "Witnesses are paths in the reviewed input graph, not engine proof trees.",
+                "Test evidence and scenario comparison are not implemented yet.",
             ],
         )
         result.update(extras)
     except InputError as exc:
         result["error"] = {"kind": "input_error", "message": str(exc)}
         exit_code = 2
+    except WitnessError as exc:
+        result["error"] = {"kind": "witness_mismatch", "message": str(exc)}
+        exit_code = 3
     except (EngineError, OSError) as exc:
         result["error"] = {"kind": "engine_error", "message": str(exc)}
         exit_code = 3

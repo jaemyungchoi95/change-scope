@@ -470,7 +470,8 @@ def load_reviewed_snapshot(
         "limitations": [
             "Document model of human-approved candidates only; deployment unverified.",
             "Relation meaning and direction were judged by the recorded reviewer.",
-            "Witnesses, test evidence and scenario comparison are not implemented yet.",
+            "Witnesses are paths in the reviewed input graph, not engine proof trees.",
+            "Test evidence and scenario comparison are not implemented yet.",
         ],
     }
     return snapshot, extras
