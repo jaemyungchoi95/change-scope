@@ -1,10 +1,11 @@
-"""T04 seam: revisions, new source versions and withdrawals in the review ledger.
+"""T04 seam: revisions, new source versions and withdrawals through the public CLI.
 
-No LLM/network calls.
+No LLM/network calls; PyreWire runs for real.
 """
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -107,6 +108,14 @@ def add_source(capsys, workspace, source=SOURCE_V2, version="2"):
     )
 
 
+def export(capsys, workspace, output):
+    return cli(capsys, "export", "--workspace", workspace, "--output", output)
+
+
+def analyze(capsys, snapshot, target):
+    return cli(capsys, "analyze", "--snapshot", snapshot, "--target", target)
+
+
 def ok(result):
     code, out = result
     assert code == 0, out
@@ -119,6 +128,104 @@ def t03_reviewed(capsys, workspace):
         ok(decide(capsys, workspace, cid[key], "approve"))
     ok(decide(capsys, workspace, cid[REVERSED], "reject"))
     return cid
+
+
+def test_new_source_version_flow(capsys, workspace, tmp_path):
+    cid = t03_reviewed(capsys, workspace)
+    out = ok(export(capsys, workspace, tmp_path / "s_a"))
+    assert out["summary"]["approved"] == 5
+    old = ok(analyze(capsys, tmp_path / "s_a/snapshot.json", "reranker"))
+    assert old["upstream_candidates"] == ["answer", "retrieval", "suggest", "webapi"]
+
+    # A new source version invalidates every approval for new snapshots.
+    out = ok(add_source(capsys, workspace))
+    assert out["source"]["source_version"] == "2"
+    assert out["lifecycle"]["stale_source"] == 8
+    code, out = export(capsys, workspace, tmp_path / "stale")
+    assert code == 2 and out["error"]["kind"] == "nothing_approved"
+    assert not (tmp_path / "stale").exists()
+
+    # Re-review: same claims on v2. suggest -> reranker is gone from v2.
+    for key in CORRECT:
+        out = ok(revise(capsys, workspace, cid[key]))
+        assert out["candidate"]["revision"] == 2
+        assert out["candidate"]["current_status"] == "pending"
+        assert out["candidate"]["source_version"] == "2"
+        assert out["candidate"]["history"][0]["status"] == "approved"
+    gone = cid[CORRECT[4]]
+    code, out = decide(capsys, workspace, gone, "approve", revision=2)
+    assert code == 2 and out["error"]["kind"] == "approval_blocked"
+    ok(decide(capsys, workspace, gone, "reject", revision=2))
+    for key in CORRECT[:4]:
+        ok(decide(capsys, workspace, cid[key], "approve", revision=2))
+
+    # The rejected reversed candidate becomes a second source for webapi -> answer.
+    out = ok(
+        revise(
+            capsys,
+            workspace,
+            cid[REVERSED],
+            1,
+            "--subject",
+            "webapi",
+            "--object",
+            "answer",
+            "--section",
+            "Batch",
+            "--quote",
+            BATCH_QUOTE,
+        )
+    )
+    assert out["candidate"]["source_check"]["status"] == "passed"
+    ok(decide(capsys, workspace, cid[REVERSED], "approve", revision=2))
+
+    out = ok(export(capsys, workspace, tmp_path / "s_b0"))
+    assert out["summary"]["approved"] == 5 and out["summary"]["relations"] == 4
+    both = ok(analyze(capsys, tmp_path / "s_b0/snapshot.json", "reranker"))
+    assert both["upstream_candidates"] == ["answer", "retrieval", "webapi"]
+    support = {
+        (f["subject"], f["object"]): sorted(s["candidate_id"] for s in f["support"])
+        for f in both["facts"]
+    }
+    assert support[("webapi", "answer")] == sorted([cid[CORRECT[0]], cid[REVERSED]])
+
+    # Withdrawing one of two sources keeps the relation.
+    out = ok(withdraw(capsys, workspace, cid[CORRECT[0]], 2))
+    assert out["candidate"]["current_status"] == "withdrawn"
+    out = ok(export(capsys, workspace, tmp_path / "s_b"))
+    statuses = {e["candidate_id"]: e["status"] for e in out["excluded"]}
+    assert statuses[cid[CORRECT[0]]] == "withdrawn"
+    assert statuses[gone] == "rejected"
+    assert statuses[cid[FAKE_QUOTE]] == "stale_source"
+    new = ok(analyze(capsys, tmp_path / "s_b/snapshot.json", "reranker"))
+    assert new["upstream_candidates"] == ["answer", "retrieval", "webapi"]
+    assert new["reviewed_schema_version"] == 2
+    assert [s["source_version"] for s in new["sources"]] == ["1", "2"]
+    empty = ok(analyze(capsys, tmp_path / "s_b/snapshot.json", "webapi"))
+    assert empty["analysis_status"] == "empty"
+
+    # The earlier snapshot still analyzes from its own preserved v1 evidence.
+    again = ok(analyze(capsys, tmp_path / "s_a/snapshot.json", "reranker"))
+    assert again["upstream_candidates"] == old["upstream_candidates"]
+    assert again["snapshot_hash"] == old["snapshot_hash"]
+
+    out = ok(
+        cli(capsys, "review", "show", "--workspace", workspace, "--id", cid[CORRECT[0]])
+    )
+    history = out["candidates"][0]["history"]
+    assert [(h["revision"], h["source_version"], h["status"]) for h in history] == [
+        (1, "1", "approved"),
+        (2, "2", "withdrawn"),
+    ]
+
+
+def test_withdrawing_the_only_source_removes_the_relation(capsys, workspace, tmp_path):
+    cid = t03_reviewed(capsys, workspace)
+    ok(withdraw(capsys, workspace, cid[CORRECT[4]], 1))
+    ok(export(capsys, workspace, tmp_path / "snap"))
+    result = ok(analyze(capsys, tmp_path / "snap/snapshot.json", "reranker"))
+    # suggest only reached reranker through the withdrawn relation.
+    assert result["upstream_candidates"] == ["answer", "retrieval", "webapi"]
 
 
 @pytest.mark.parametrize(
@@ -337,3 +444,60 @@ def test_missing_new_source_blob_is_integrity_error(capsys, workspace):
     (workspace / f"sources/{blob}.md").unlink()
     code, out = cli(capsys, "review", "show", "--workspace", workspace)
     assert code == 2 and out["error"]["kind"] == "integrity_error"
+
+
+def _v2_snapshot(capsys, workspace, tmp_path):
+    cid = t03_reviewed(capsys, workspace)
+    ok(add_source(capsys, workspace))
+    ok(revise(capsys, workspace, cid[CORRECT[1]]))
+    ok(decide(capsys, workspace, cid[CORRECT[1]], "approve", revision=2))
+    ok(export(capsys, workspace, tmp_path / "snap"))
+    return tmp_path / "snap"
+
+
+def test_v2_snapshot_ships_every_source_version(capsys, workspace, tmp_path):
+    snap = _v2_snapshot(capsys, workspace, tmp_path)
+    assert len(list((snap / "sources").iterdir())) == 2
+    result = ok(analyze(capsys, snap / "snapshot.json", "reranker"))
+    # Only answer -> retrieval was re-approved on v2.
+    assert result["upstream_candidates"] == []
+    result = ok(analyze(capsys, snap / "snapshot.json", "retrieval"))
+    assert result["upstream_candidates"] == ["answer"]
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        lambda snap: next(
+            p
+            for p in (snap / "sources").iterdir()
+            if p.read_bytes() == SOURCE.read_bytes()
+        ).unlink(),
+        lambda snap: _edit(snap, lambda d: d["sources"].pop(0)),
+        lambda snap: _edit(snap, lambda d: d["excluded"][0].update(status="pending")),
+        lambda snap: _edit(snap, lambda d: d.update(schema_version=3)),
+        lambda snap: _edit(snap, lambda d: d.update(schema_version=1)),
+    ],
+    ids=["old-blob-removed", "sources-list", "excluded", "schema-3", "schema-1"],
+)
+def test_edited_v2_snapshot_is_refused(capsys, workspace, tmp_path, tamper):
+    snap = _v2_snapshot(capsys, workspace, tmp_path)
+    tamper(snap)
+    code, out = analyze(capsys, snap / "snapshot.json", "retrieval")
+    assert code == 2 and out["error"]["kind"] == "input_error"
+
+
+def _edit(snap, change):
+    data = json.loads((snap / "snapshot.json").read_text())
+    change(data)
+    (snap / "snapshot.json").write_text(json.dumps(data, indent=2))
+
+
+def test_export_copy_failure_of_new_blob_cleans_up(capsys, workspace, tmp_path):
+    snap = _v2_snapshot(capsys, workspace, tmp_path)
+    shutil.rmtree(snap)
+    blob = hashlib.sha256(SOURCE_V2.read_bytes()).hexdigest()
+    (workspace / f"sources/{blob}.md").write_bytes(b"changed")
+    code, out = export(capsys, workspace, tmp_path / "snap")
+    assert code == 2 and out["error"]["kind"] == "integrity_error"
+    assert not (tmp_path / "snap").exists()

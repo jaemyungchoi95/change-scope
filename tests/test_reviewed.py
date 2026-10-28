@@ -107,6 +107,9 @@ def test_full_review_exports_only_approved_and_analyzes(capsys, workspace, tmp_p
         "pending": 0,
         "rejected": 3,
         "approval_blocked": 0,
+        "withdrawn": 0,
+        "stale_source": 0,
+        "relations": 5,
     }
     assert sorted((f["subject"], f["object"]) for f in out["approved"]) == sorted(
         (s, o) for s, o, _ in CORRECT
