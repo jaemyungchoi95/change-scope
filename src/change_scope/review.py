@@ -505,6 +505,11 @@ def show(workspace_path: Path, cid: str | None = None) -> tuple[dict, int]:
             show_status="success" if selected else "empty",
             source=source.model_dump(),
             current_source=workspace.current_source.model_dump(),
+            extraction={
+                "llm_mode": workspace.candidate_set.llm_mode,
+                "provenance": workspace.candidate_set.provenance,
+                "recording_sha256": workspace.candidate_set.recording_sha256,
+            },
             candidate_set_sha256=workspace.candidate_set_sha256,
             ledger_head_sha256=workspace.ledger_head_sha256,
             summary=_summary(workspace),

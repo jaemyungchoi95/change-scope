@@ -15,7 +15,7 @@ from .evidence import (
     load_suggestions,
     render_markdown,
 )
-from .llm import LLMError
+from .llm import SERVICES, LLMError
 from .schemas import InputError, sha256
 from .witness import WitnessError, explain
 
@@ -207,7 +207,19 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument("--evidence", type=Path)
     compare.add_argument("--report", type=Path)
     compare.add_argument("--timeout", type=_timeout, default=30.0)
+    serve = commands.add_parser(
+        "serve", help="Run the local read-only viewer on 127.0.0.1"
+    )
+    serve.add_argument("--snapshot", type=Path, required=True)
+    serve.add_argument("--workspace", type=Path, help="Review workspace to show")
+    serve.add_argument("--evidence", type=Path)
+    serve.add_argument("--scenario", type=Path)
+    serve.add_argument("--llm", choices=("off", "recorded", "live"), default="off")
+    serve.add_argument("--suggestions-recording", type=Path)
+    serve.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
+    if args.command == "serve":
+        return run_serve(args)
     if args.command in ("proposal", "scenario"):
         from . import scenario as scenario_module
 
@@ -511,6 +523,43 @@ def run_analysis(args: argparse.Namespace) -> tuple[dict, int]:
         result["error"] = {"kind": "engine_error", "message": str(exc)}
         exit_code = 3
     return result, exit_code
+
+
+def run_serve(args: argparse.Namespace) -> int:
+    from .reviewed import load_for_analysis
+    from .server import ServerConfig, serve
+
+    result = {"schema_version": 1, "serve_status": "error"}
+    try:
+        load_for_analysis(args.snapshot)
+        if args.scenario:
+            load_for_analysis(args.scenario)
+        if args.evidence:
+            load_catalog(args.evidence, frozenset(SERVICES))
+        if args.llm != "off" and not args.evidence:
+            raise InputError("--llm needs --evidence")
+        if args.llm == "recorded" and not args.suggestions_recording:
+            raise InputError("--llm recorded needs --suggestions-recording")
+        if args.workspace and not (args.workspace / "candidates.json").is_file():
+            raise InputError("--workspace is not a review workspace")
+        if not 1024 <= args.port <= 65535:
+            raise InputError("--port must be 1024-65535")
+    except InputError as exc:
+        result["error"] = {"kind": "input_error", "message": str(exc)}
+        return emit_result(
+            result, 2, None, status_key="serve_status", value_key="error"
+        )
+    return serve(
+        ServerConfig(
+            snapshot=args.snapshot,
+            workspace=args.workspace,
+            evidence=args.evidence,
+            scenario=args.scenario,
+            llm=args.llm,
+            suggestions_recording=args.suggestions_recording,
+            port=args.port,
+        )
+    )
 
 
 def run_compare(args: argparse.Namespace) -> tuple[dict, int]:
