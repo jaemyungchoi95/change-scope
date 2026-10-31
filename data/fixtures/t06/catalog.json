@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "kind": "evidence_catalog",
+  "catalog_id": "t06-evidence",
+  "fixture": true,
+  "documents": [
+    {
+      "doc_id": "T-RERANK-CONTRACT",
+      "doc_type": "test",
+      "title": "Reranker scoring contract test",
+      "version": "1",
+      "path": "docs/reranker-contract.md",
+      "sha256": "4d1051c94dbb39c0604e8dec68877cefaf352768cc3c3dcbe934a4e160912c34"
+    },
+    {
+      "doc_id": "T-SEARCH-E2E",
+      "doc_type": "test",
+      "title": "Search end-to-end test",
+      "version": "1",
+      "path": "docs/search-e2e.md",
+      "sha256": "1c6d43013ad5ab515f367625a358654b995731d878fd589af66f7b9f9893fc91"
+    },
+    {
+      "doc_id": "T-WEBAPI-SMOKE",
+      "doc_type": "test",
+      "title": "Webapi smoke test",
+      "version": "1",
+      "path": "docs/webapi-smoke.md",
+      "sha256": "4be05160d37f2dcf82d4dec980f076da2a4f2fdd796c80b08a112318705c7864"
+    },
+    {
+      "doc_id": "D-SUGGEST-DESIGN",
+      "doc_type": "design",
+      "title": "Suggest design note",
+      "version": "1",
+      "path": "docs/suggest-design.md",
+      "sha256": "dc8a34c5d52fd586142e52a12daa52ac15c792ca61de2dedf69513c99e783b94"
+    }
+  ],
+  "links": [
+    {
+      "link_id": "L-RERANK",
+      "relation": "covers",
+      "doc_id": "T-RERANK-CONTRACT",
+      "service": "reranker",
+      "section": "Covers",
+      "quote": "sends scoring requests to reranker over HTTP",
+      "review_status": "approved"
+    },
+    {
+      "link_id": "L-E2E-WEBAPI",
+      "relation": "covers",
+      "doc_id": "T-SEARCH-E2E",
+      "service": "webapi",
+      "section": "Covers",
+      "quote": "The test submits a query to webapi.",
+      "review_status": "approved"
+    },
+    {
+      "link_id": "L-E2E-ANSWER",
+      "relation": "covers",
+      "doc_id": "T-SEARCH-E2E",
+      "service": "answer",
+      "section": "Covers",
+      "quote": "It asserts that answer returns a composed response.",
+      "review_status": "approved"
+    },
+    {
+      "link_id": "L-E2E-RETRIEVAL",
+      "relation": "covers",
+      "doc_id": "T-SEARCH-E2E",
+      "service": "retrieval",
+      "section": "Covers",
+      "quote": "It asserts that retrieval returns ranked passages.",
+      "review_status": "approved"
+    },
+    {
+      "link_id": "L-SMOKE-WEBAPI",
+      "relation": "covers",
+      "doc_id": "T-WEBAPI-SMOKE",
+      "service": "webapi",
+      "section": "Covers",
+      "quote": "checks that webapi serves its health endpoint",
+      "review_status": "approved"
+    },
+    {
+      "link_id": "L-SUGGEST-ABOUT",
+      "relation": "about",
+      "doc_id": "D-SUGGEST-DESIGN",
+      "service": "suggest",
+      "section": "Role",
+      "quote": "suggest produces query completions and calls reranker",
+      "review_status": "approved"
+    }
+  ]
+}

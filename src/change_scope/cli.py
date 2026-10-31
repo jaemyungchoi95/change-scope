@@ -3,12 +3,19 @@
 import argparse
 import json
 import math
+import os
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from .engine import EngineError, rules_hash, upstream_candidates
+from .evidence import attach, load_catalog, load_suggestions, render_markdown
+from .llm import LLMError
 from .schemas import InputError, sha256
 from .witness import WitnessError, explain
+
+
+class OutputError(RuntimeError):
+    pass
 
 
 def _timeout(value: str) -> float:
@@ -32,6 +39,19 @@ def main(argv: list[str] | None = None) -> int:
         help="Create a new result file; existing files are preserved",
     )
     analyze.add_argument("--timeout", type=_timeout, default=30.0, metavar="SECONDS")
+    analyze.add_argument(
+        "--evidence", type=Path, help="Reviewed evidence catalog of covers/about links"
+    )
+    analyze.add_argument(
+        "--suggestions",
+        type=Path,
+        help="Synthetic recording of suggestion output; never executed",
+    )
+    analyze.add_argument(
+        "--report",
+        type=Path,
+        help="Create a new Markdown report; existing files are preserved",
+    )
     parity = commands.add_parser(
         "verify-wirelog", help="Compare an upstream Wirelog CLI with PyreWire"
     )
@@ -291,6 +311,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.target not in snapshot.services:
             raise InputError(f"Unknown target: {args.target}")
+        if (args.suggestions or args.report) and not args.evidence:
+            raise InputError("--suggestions and --report require --evidence")
+        if args.report and os.path.lexists(args.report):
+            raise OutputError("Report already exists; choose a new path")
+        catalog = (
+            load_catalog(args.evidence, snapshot.services) if args.evidence else None
+        )
         result["rules_hash"] = rules_hash()
         result["input_hash"] = sha256(
             json.dumps(
@@ -339,6 +366,40 @@ def main(argv: list[str] | None = None) -> int:
             ],
         )
         result.update(extras)
+        if catalog is not None:
+            suggestions, meta = (
+                load_suggestions(
+                    args.suggestions, snapshot, args.target, candidates, catalog
+                )
+                if args.suggestions
+                else (None, None)
+            )
+            result.update(
+                attach(
+                    snapshot,
+                    args.target,
+                    candidates,
+                    witnesses,
+                    catalog,
+                    suggestions,
+                    meta,
+                )
+            )
+        if args.report:
+            try:
+                with args.report.open("x", encoding="utf-8") as report:
+                    report.write(render_markdown(result))
+            except (OSError, ValueError) as exc:
+                raise OutputError(f"Cannot write report: {type(exc).__name__}") from exc
+            result["report"] = str(args.report)
+    except OutputError as exc:
+        result.update(analysis_status="error", upstream_candidates=None)
+        result["error"] = {"kind": "output_error", "message": str(exc)}
+        exit_code = 4
+    except LLMError as exc:
+        result.update(analysis_status="error", upstream_candidates=None)
+        result["error"] = {"kind": exc.kind, "message": str(exc)}
+        exit_code = 2 if exc.kind == "input_error" else 3
     except InputError as exc:
         result["error"] = {"kind": "input_error", "message": str(exc)}
         exit_code = 2

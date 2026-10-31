@@ -1,0 +1,10 @@
+{
+ "schema_version": 1,
+ "provenance": "synthetic_test_double",
+ "snapshot_id": "S1",
+ "target": "reranker",
+ "catalog_sha256": "df43e07315caa45b9768f03bb75eab8e2297cdc9cb3bc1352d0dc9f237b2d750",
+ "returncode": 0,
+ "stdout": "{\"type\": \"thread.started\", \"thread_id\": \"synthetic-thread\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"id\": \"synthetic-output\", \"type\": \"agent_message\", \"text\": \"{\\\"target\\\": \\\"reranker\\\", \\\"suggestions\\\": [{\\\"service\\\": \\\"suggest\\\", \\\"text\\\": \\\"Add a contract test for suggest calling reranker; the catalog links no test to suggest.\\\", \\\"refs\\\": [\\\"F05\\\", \\\"D-SUGGEST-DESIGN\\\"]}, {\\\"service\\\": \\\"webapi\\\", \\\"text\\\": \\\"Re-run the search end-to-end test against the changed reranker.\\\", \\\"refs\\\": [\\\"T-SEARCH-E2E\\\", \\\"F03\\\"]}]}\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}\n",
+ "stderr": ""
+}
