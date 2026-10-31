@@ -59,7 +59,7 @@ def _support(fact: dict, sources: tuple[dict, ...]) -> dict:
         "source_sha256": source["sha256"],
         "section": fact["section"],
         "quote": fact["quote"],
-    }
+    } | ({"evidence_kind": fact["evidence_kind"]} if "evidence_kind" in fact else {})
 
 
 def explain(

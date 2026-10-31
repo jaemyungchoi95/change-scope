@@ -486,4 +486,8 @@ def load_for_analysis(path: Path) -> tuple[Snapshot, dict]:
         raise InputError(f"Cannot read snapshot: {exc}") from exc
     if isinstance(data, dict) and data.get("kind") == "reviewed_snapshot":
         return load_reviewed_snapshot(path, raw, data.get("schema_version"))
+    if isinstance(data, dict) and data.get("kind") == "scenario_snapshot":
+        from .scenario import load_scenario
+
+        return load_scenario(path, raw)
     return load_snapshot(path), {}

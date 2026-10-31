@@ -159,7 +159,83 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="New snapshot directory; existing paths are refused",
     )
+    proposal = commands.add_parser("proposal", help="Review change proposals")
+    proposal_commands = proposal.add_subparsers(dest="proposal_command", required=True)
+    proposal_init = proposal_commands.add_parser(
+        "init",
+        help="Validate pending proposals against their base into a new workspace",
+    )
+    proposal_init.add_argument("--proposals", type=Path, required=True)
+    proposal_init.add_argument("--base", type=Path, required=True)
+    proposal_init.add_argument("--workspace", type=Path, required=True)
+    proposal_decide = proposal_commands.add_parser(
+        "decide", help="Append one approve/reject decision to the proposal ledger"
+    )
+    proposal_decide.add_argument("--workspace", type=Path, required=True)
+    proposal_decide.add_argument("--id", required=True)
+    proposal_decide.add_argument("--revision", type=int, required=True)
+    proposal_decide.add_argument(
+        "--decision", choices=("approve", "reject"), required=True
+    )
+    proposal_decide.add_argument("--reviewer", required=True)
+    proposal_decide.add_argument("--reason", required=True)
+    scenario = commands.add_parser("scenario", help="Build scenario snapshots")
+    scenario_commands = scenario.add_subparsers(dest="scenario_command", required=True)
+    scenario_build = scenario_commands.add_parser(
+        "build", help="Apply approved proposals to their base in a new directory"
+    )
+    scenario_build.add_argument("--workspace", type=Path, required=True)
+    scenario_build.add_argument("--base", type=Path, required=True)
+    scenario_build.add_argument("--output", type=Path, required=True)
+    compare = commands.add_parser(
+        "compare", help="Analyze a base and its scenario and report the change"
+    )
+    compare.add_argument("--base", type=Path, required=True)
+    compare.add_argument("--scenario", type=Path, required=True)
+    compare.add_argument("--target", required=True)
+    compare.add_argument("--evidence", type=Path)
+    compare.add_argument("--report", type=Path)
+    compare.add_argument("--timeout", type=_timeout, default=30.0)
     args = parser.parse_args(argv)
+    if args.command in ("proposal", "scenario"):
+        from . import scenario as scenario_module
+
+        if args.command == "scenario":
+            result, exit_code = scenario_module.build(
+                args.workspace, args.base, args.output
+            )
+            return emit_result(
+                result, exit_code, None, status_key="build_status", value_key="applied"
+            )
+        if args.proposal_command == "init":
+            result, exit_code = scenario_module.init(
+                args.proposals, args.base, args.workspace
+            )
+            return emit_result(
+                result,
+                exit_code,
+                None,
+                status_key="proposal_status",
+                value_key="proposals",
+            )
+        result, exit_code = scenario_module.decide(
+            args.workspace,
+            args.id,
+            args.revision,
+            args.decision,
+            args.reason,
+            args.reviewer,
+        )
+        return emit_result(
+            result, exit_code, None, status_key="decide_status", value_key="proposals"
+        )
+    if args.command == "compare":
+        return emit_result(
+            *run_compare(args),
+            None,
+            status_key="compare_status",
+            value_key="comparison",
+        )
     if args.command == "export":
         from .reviewed import export as run_export
 
@@ -416,6 +492,77 @@ def run_analysis(args: argparse.Namespace) -> tuple[dict, int]:
         result["error"] = {"kind": "engine_error", "message": str(exc)}
         exit_code = 3
     return result, exit_code
+
+
+def run_compare(args: argparse.Namespace) -> tuple[dict, int]:
+    from .scenario import compare, render_compare_markdown
+
+    result = {
+        "schema_version": 1,
+        "compare_status": "error",
+        "llm_mode": "not_used",
+        "comparison": None,
+        "deployment_status": "unverified",
+    }
+    if args.report and os.path.lexists(args.report):
+        result["error"] = {
+            "kind": "output_error",
+            "message": "Report already exists; choose a new path",
+        }
+        return result, 4
+    runs = {}
+    for name, path in (("base", args.base), ("scenario", args.scenario)):
+        sub = argparse.Namespace(
+            snapshot=path,
+            target=args.target,
+            timeout=args.timeout,
+            evidence=args.evidence,
+            suggestions=None,
+            report=None,
+        )
+        runs[name], code = run_analysis(sub)
+        if code:
+            result[f"{name}_result"] = runs[name]
+            result["error"] = {
+                "kind": runs[name]["error"]["kind"],
+                "message": f"{name} analysis failed: {runs[name]['error']['message']}",
+            }
+            return result, code
+    scenario = runs["scenario"].get("scenario")
+    if scenario is None:
+        result["error"] = {
+            "kind": "input_error",
+            "message": "--scenario is not a scenario snapshot",
+        }
+        return result, 2
+    if (scenario["base"]["snapshot_id"], scenario["base"]["snapshot_hash"]) != (
+        runs["base"]["snapshot_id"],
+        runs["base"]["snapshot_hash"],
+    ):
+        result["error"] = {
+            "kind": "input_error",
+            "message": "Scenario was built on another base snapshot ID/hash",
+        }
+        return result, 2
+    result.update(
+        compare_status="success",
+        comparison=compare(runs["base"], runs["scenario"], scenario),
+        base_result=runs["base"],
+        scenario_result=runs["scenario"],
+    )
+    if args.report:
+        try:
+            with args.report.open("x", encoding="utf-8") as report:
+                report.write(render_compare_markdown(result))
+        except (OSError, ValueError) as exc:
+            result.update(compare_status="error", comparison=None)
+            result["error"] = {
+                "kind": "output_error",
+                "message": f"Cannot write report: {type(exc).__name__}",
+            }
+            return result, 4
+        result["report"] = str(args.report)
+    return result, 0
 
 
 def emit_result(

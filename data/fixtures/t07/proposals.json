@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "proposal_set",
+  "base_snapshot_id": "S1",
+  "base_snapshot_hash": "168bbf3a2b91eea2e2aa604aec9d9bc4e831eac8a9ad0b369551c834220985e4",
+  "source": {
+    "source_id": "change-request",
+    "source_version": "1",
+    "path": "change-request.md",
+    "sha256": "b0493fa834d9c3997e4f7a199e6f79be129bcbf8b6e01e92cb1f538b84418431"
+  },
+  "proposals": [
+    {
+      "proposal_id": "P-001",
+      "revision": 1,
+      "operation": "remove",
+      "predicate": "depends_on",
+      "subject": "retrieval",
+      "object": "reranker",
+      "section": "Proposal",
+      "quote": "Remove the call from retrieval to reranker",
+      "review_status": "pending"
+    },
+    {
+      "proposal_id": "P-002",
+      "revision": 1,
+      "operation": "add",
+      "predicate": "depends_on",
+      "subject": "answer",
+      "object": "suggest",
+      "section": "Follow-up",
+      "quote": "Add a call from answer to suggest",
+      "review_status": "pending"
+    }
+  ]
+}
