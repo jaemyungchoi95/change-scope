@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "HOLDOUT-GOLD",
+  "purpose": "baseline",
+  "deployment_status": "unverified",
+  "fixture": true,
+  "services": [
+    "webapi",
+    "answer",
+    "retrieval",
+    "reranker",
+    "suggest"
+  ],
+  "sources": [
+    {
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "path": "topology.md",
+      "sha256": "25578e17518faf8d0caf565f27712a8cd83c9946614b5a146842873d31b8b74a"
+    }
+  ],
+  "assertions": [
+    {
+      "assertion_id": "H-F01",
+      "revision": 1,
+      "subject": "webapi",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "webapi calls answer over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "H-F02",
+      "revision": 1,
+      "subject": "answer",
+      "predicate": "depends_on",
+      "object": "retrieval",
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "answer calls retrieval over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "H-F03",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "suggest",
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "retrieval calls suggest over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "H-F04",
+      "revision": 1,
+      "subject": "suggest",
+      "predicate": "depends_on",
+      "object": "answer",
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "suggest calls answer over HTTP.",
+      "review_status": "approved"
+    },
+    {
+      "assertion_id": "H-F05",
+      "revision": 1,
+      "subject": "retrieval",
+      "predicate": "depends_on",
+      "object": "reranker",
+      "source_id": "holdout-topology",
+      "source_version": "1",
+      "section": "HTTP calls",
+      "quote": "retrieval calls reranker over HTTP.",
+      "review_status": "approved"
+    }
+  ]
+}

@@ -211,6 +211,17 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument("--evidence", type=Path)
     compare.add_argument("--report", type=Path)
     compare.add_argument("--timeout", type=_timeout, default=30.0)
+    evaluate = commands.add_parser(
+        "evaluate", help="Run fixed holdout questions and optional extraction metrics"
+    )
+    evaluate.add_argument("--questions", type=Path, required=True)
+    evaluate.add_argument("--snapshot", type=Path, required=True)
+    evaluate.add_argument(
+        "--gold", type=Path, help="Gold snapshot for extraction metrics"
+    )
+    evaluate.add_argument("--workspace", type=Path, help="Review workspace to score")
+    evaluate.add_argument("--output", type=Path)
+    evaluate.add_argument("--timeout", type=_timeout, default=30.0)
     serve = commands.add_parser(
         "serve", help="Run the local read-only viewer on 127.0.0.1"
     )
@@ -222,6 +233,19 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--suggestions-recording", type=Path)
     serve.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
+    if args.command == "evaluate":
+        from .evaluation import evaluate as run_evaluate
+
+        result, exit_code = run_evaluate(
+            args.questions, args.snapshot, args.gold, args.workspace, args.timeout
+        )
+        return emit_result(
+            result,
+            exit_code,
+            args.output,
+            status_key="evaluation_status",
+            value_key="questions",
+        )
     if args.command == "serve":
         return run_serve(args)
     if args.command in ("proposal", "scenario"):
