@@ -137,13 +137,19 @@ def test_command_and_environment_restrict_inheritance(monkeypatch, tmp_path):
     assert "--dangerously-bypass-approvals-and-sandbox" not in command
 
 
-def test_unknown_cli_blocks_before_model_call(monkeypatch):
+def test_supported_cli_versions_are_pinned():
+    # Each entry was added only after the live sandbox probe and both smokes passed.
+    assert llm.SUPPORTED_CLIS == ("codex-cli 0.162.1", "codex-cli 0.163.0")
+
+
+@pytest.mark.parametrize("version", [b"codex-cli 999.0", b"codex-cli 0.164.0"])
+def test_unknown_cli_blocks_before_model_call(monkeypatch, version):
     calls = []
     monkeypatch.setattr(llm.shutil, "which", lambda _: "/fake/codex")
 
     def runner(argv, **kwargs):
         calls.append(argv)
-        return ProcessOutput(0, b"codex-cli 999.0\n", b"")
+        return ProcessOutput(0, version + b"\n", b"")
 
     monkeypatch.setattr(llm, "run_bounded", runner)
     result, code = llm.smoke("normal", live=True)

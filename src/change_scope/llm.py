@@ -12,7 +12,9 @@ from pathlib import Path
 from .process import ProcessError, ProcessOutput, run_bounded
 from .schemas import sha256
 
-SUPPORTED_CLI = "codex-cli 0.162.1"
+# Each version is enabled only after the live sandbox probe and both smokes pass on it.
+SUPPORTED_CLIS = ("codex-cli 0.162.1", "codex-cli 0.163.0")
+SUPPORTED_CLI = SUPPORTED_CLIS[0]
 DISABLED_CODE_MODE_NOTICE = (
     "Code Mode is unavailable because code-mode host is disabled. "
     "Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."
@@ -318,7 +320,12 @@ print(json.dumps(result))
 
 
 def _live(
-    case: str, document: bytes, prompt: bytes, timeout: float, audit: dict
+    case: str,
+    document: bytes,
+    prompt: bytes,
+    timeout: float,
+    audit: dict,
+    schema: bytes | None = None,
 ) -> ProcessOutput:
     binary = shutil.which("codex")
     if not binary:
@@ -332,7 +339,7 @@ def _live(
             .strip()
         )
         audit["cli_version"] = actual_version
-        if actual_version != SUPPORTED_CLI:
+        if actual_version not in SUPPORTED_CLIS:
             raise LLMError(
                 "unsupported_cli",
                 "CLI version has not been verified; live path disabled",
@@ -346,7 +353,8 @@ def _live(
                 "CLI subscription login is required; no credentials were read by the app",
             )
         (cwd / "input.md").write_bytes(document)
-        (cwd / "output-schema.json").write_bytes(_fixture("output-schema.json"))
+        schema = schema if schema is not None else _fixture("output-schema.json")
+        (cwd / "output-schema.json").write_bytes(schema)
         (cwd / "protected.txt").write_bytes(b"UNCHANGED\n")
         before = _workspace_hashes(cwd)
         _probe_sandbox(binary, cwd, env, audit)
@@ -360,7 +368,7 @@ def _live(
             command=command,
             policy=POLICY,
             disabled_features=list(DISABLED_FEATURES),
-            schema_sha256=sha256(_fixture("output-schema.json")),
+            schema_sha256=sha256(schema),
         )
         try:
             output = run_bounded(

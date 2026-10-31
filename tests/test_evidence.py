@@ -11,8 +11,10 @@ from pathlib import Path
 
 import pytest
 
+from change_scope import evidence
 from change_scope.cli import main
 from change_scope.evidence import suggestion_recording
+from change_scope.process import ProcessOutput
 
 ROOT = Path(__file__).resolve().parents[1]
 S1 = ROOT / "data/fixtures/s1/snapshot.json"
@@ -280,3 +282,40 @@ def test_report_neutralizes_control_characters(capsys, catalog_copy, tmp_path):
     assert code == 0, result
     text = report.read_text()
     assert "\x1b" not in text and "`" not in text
+
+
+def _fake_live(payload):
+    digest = hashlib.sha256(CATALOG.read_bytes()).hexdigest()
+    stdout = suggestion_recording(payload, "S1", "reranker", digest)["stdout"].encode()
+
+    def fake(case, document, prompt, timeout, audit, schema=None):
+        audit.update(cli_version="codex-cli 0.163.0", workspace_unchanged=True)
+        return ProcessOutput(0, stdout, b"")
+
+    return fake, []
+
+
+def test_live_output_citing_unknown_evidence_is_rejected(monkeypatch, capsys):
+    fake, _ = _fake_live(
+        {
+            "target": "reranker",
+            "suggestions": [{"service": "suggest", "text": "x", "refs": ["F99"]}],
+        }
+    )
+    monkeypatch.setattr(evidence, "_live", fake)
+    code = main(
+        ["analyze", "--snapshot", str(S1), "--target", "reranker", "--evidence",
+         str(CATALOG), "--live-suggestions"]
+    )  # fmt: skip
+    result = json.loads(capsys.readouterr().out)
+    assert code == 3 and result["error"]["kind"] == "schema_error"
+    assert result["upstream_candidates"] is None
+
+
+def test_live_and_recorded_suggestions_are_exclusive(capsys):
+    code = main(
+        ["analyze", "--snapshot", str(S1), "--target", "reranker", "--evidence",
+         str(CATALOG), "--live-suggestions", "--suggestions", str(RECORDED)]
+    )  # fmt: skip
+    assert code == 2
+    assert json.loads(capsys.readouterr().out)["error"]["kind"] == "input_error"

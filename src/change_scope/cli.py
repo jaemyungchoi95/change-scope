@@ -8,7 +8,13 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from .engine import EngineError, rules_hash, upstream_candidates
-from .evidence import attach, load_catalog, load_suggestions, render_markdown
+from .evidence import (
+    attach,
+    live_suggestions,
+    load_catalog,
+    load_suggestions,
+    render_markdown,
+)
 from .llm import LLMError
 from .schemas import InputError, sha256
 from .witness import WitnessError, explain
@@ -46,6 +52,11 @@ def main(argv: list[str] | None = None) -> int:
         "--suggestions",
         type=Path,
         help="Synthetic recording of suggestion output; never executed",
+    )
+    analyze.add_argument(
+        "--live-suggestions",
+        action="store_true",
+        help="Explicitly opt in to one subscription CLI turn for suggestions",
     )
     analyze.add_argument(
         "--report",
@@ -393,8 +404,13 @@ def run_analysis(args: argparse.Namespace) -> tuple[dict, int]:
         )
         if args.target not in snapshot.services:
             raise InputError(f"Unknown target: {args.target}")
-        if (args.suggestions or args.report) and not args.evidence:
-            raise InputError("--suggestions and --report require --evidence")
+        live = getattr(args, "live_suggestions", False)
+        if (args.suggestions or args.report or live) and not args.evidence:
+            raise InputError(
+                "--suggestions, --live-suggestions and --report require --evidence"
+            )
+        if args.suggestions and live:
+            raise InputError("Use either recorded or live suggestions")
         if args.report and os.path.lexists(args.report):
             raise OutputError("Report already exists; choose a new path")
         catalog = (
@@ -449,13 +465,16 @@ def run_analysis(args: argparse.Namespace) -> tuple[dict, int]:
         )
         result.update(extras)
         if catalog is not None:
-            suggestions, meta = (
-                load_suggestions(
+            if live:
+                suggestions, meta = live_suggestions(
+                    snapshot, args.target, candidates, witnesses, catalog
+                )
+            elif args.suggestions:
+                suggestions, meta = load_suggestions(
                     args.suggestions, snapshot, args.target, candidates, catalog
                 )
-                if args.suggestions
-                else (None, None)
-            )
+            else:
+                suggestions, meta = None, None
             result.update(
                 attach(
                     snapshot,
