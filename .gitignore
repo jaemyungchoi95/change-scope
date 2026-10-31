@@ -21,12 +21,12 @@ auth.json
 *.pem
 *.key
 
-# Generated runs and private training sources
+# Generated runs and local-only material
 /runs/
 /data/runtime/
 /docs/local/
 
-# Local review artifacts and activity-report drafts
+# Local review artifacts and drafts
 /dev/active/mvp/*.html
 /docs/activity-report-draft.md
 *.pdf
