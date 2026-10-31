@@ -285,6 +285,12 @@ def main(argv: list[str] | None = None) -> int:
             args.snapshot, args.target, args.binary, args.timeout
         )
         return emit_result(result, exit_code, args.output)
+    result, exit_code = run_analysis(args)
+    return emit_result(result, exit_code, args.output)
+
+
+def run_analysis(args: argparse.Namespace) -> tuple[dict, int]:
+    """Analyze one snapshot; needs snapshot, target, timeout, evidence, suggestions, report."""
     result = {
         "schema_version": 1,
         "analysis_status": "error",
@@ -409,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     except (EngineError, OSError) as exc:
         result["error"] = {"kind": "engine_error", "message": str(exc)}
         exit_code = 3
-    return emit_result(result, exit_code, args.output)
+    return result, exit_code
 
 
 def emit_result(
