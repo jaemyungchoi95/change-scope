@@ -97,8 +97,12 @@ def main(argv: list[str] | None = None) -> int:
     extract.add_argument(
         "--recording",
         type=Path,
-        required=True,
         help="Synthetic process recording; never executed",
+    )
+    extract.add_argument(
+        "--live",
+        action="store_true",
+        help="Explicitly opt in to one subscription CLI extraction turn",
     )
     extract.add_argument(
         "--workspace",
@@ -343,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
             args.source_version,
             args.recording,
             args.workspace,
+            live=args.live,
         )
         return emit_result(
             result,

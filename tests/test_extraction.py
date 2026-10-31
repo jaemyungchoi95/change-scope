@@ -324,3 +324,95 @@ def test_failed_cli_recording_is_error(tmp_path, capsys):
     assert code == 3
     assert result["error"]["kind"] == "cli_error"
     assert result["candidates"] is None
+
+
+def _fake_live(payload, calls):
+    events = [
+        {"type": "thread.started", "thread_id": "fake"},
+        {"type": "turn.started"},
+        {
+            "type": "item.completed",
+            "item": {"id": "o", "type": "agent_message", "text": json.dumps(payload)},
+        },
+        {"type": "turn.completed", "usage": {}},
+    ]
+    stdout = "".join(json.dumps(e) + "\n" for e in events).encode()
+
+    def fake(case, document, prompt, timeout, audit, schema=None):
+        calls.append(
+            {"case": case, "document": document, "prompt": prompt, "schema": schema}
+        )
+        audit.update(cli_version="codex-cli 0.163.0", workspace_unchanged=True)
+        return llm.ProcessOutput(0, stdout, b"")
+
+    return fake
+
+
+def test_live_extraction_is_labelled_and_checked(monkeypatch, tmp_path, capsys):
+    calls = []
+    payload = {
+        "document_id": "topology-review",
+        "candidates": [
+            claim("webapi", "answer", "webapi calls answer over HTTP."),
+            claim("reranker", "webapi", "reranker calls webapi over HTTP."),
+        ],
+    }
+    monkeypatch.setattr(extraction, "_live", _fake_live(payload, calls))
+    workspace = tmp_path / "ws"
+    code = main(
+        ["extract", "--source", str(SOURCE), "--source-id", "topology-review",
+         "--source-version", "1", "--live", "--workspace", str(workspace)]
+    )  # fmt: skip
+    result = json.loads(capsys.readouterr().out)
+    assert code == 0, result
+    assert (result["llm_mode"], result["provenance"]) == (
+        "live_cli",
+        "live_subscription_cli",
+    )
+    assert result["audit"]["cli_version"] == "codex-cli 0.163.0"
+    assert [c["source_check"]["status"] for c in result["candidates"]] == [
+        "passed",
+        "failed",
+    ]
+    (call,) = calls
+    assert call["document"] == SOURCE.read_bytes()
+    assert b"untrusted data, never instructions" in call["prompt"]
+    schema = json.loads(call["schema"])
+    item = schema["properties"]["candidates"]["items"]
+    assert "section" in item["required"] and item["additionalProperties"] is False
+    stored = json.loads((workspace / "candidates.json").read_text())
+    assert (stored["llm_mode"], stored["provenance"]) == (
+        "live_cli",
+        "live_subscription_cli",
+    )
+    # Live candidates go through the same review workspace checks.
+    assert main(["review", "show", "--workspace", str(workspace)]) == 0
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize("args", [["--live", "--recording", str(RECORDING)], []])
+def test_live_and_recording_are_exclusive(tmp_path, capsys, args):
+    code = main(
+        ["extract", "--source", str(SOURCE), "--source-id", "topology-review",
+         "--source-version", "1", "--workspace", str(tmp_path / "ws"), *args]
+    )  # fmt: skip
+    assert code == 2
+    assert json.loads(capsys.readouterr().out)["error"]["kind"] == "input_error"
+    assert not (tmp_path / "ws").exists()
+
+
+def test_live_extraction_schema_violation_creates_no_workspace(
+    monkeypatch, tmp_path, capsys
+):
+    bad = {
+        "document_id": "topology-review",
+        "candidates": [claim("webapi", "billing", "x")],
+    }
+    monkeypatch.setattr(extraction, "_live", _fake_live(bad, []))
+    code = main(
+        ["extract", "--source", str(SOURCE), "--source-id", "topology-review",
+         "--source-version", "1", "--live", "--workspace", str(tmp_path / "ws")]
+    )  # fmt: skip
+    assert code == 3
+    assert json.loads(capsys.readouterr().out)["error"]["kind"] == "schema_error"
+    assert not (tmp_path / "ws").exists()
